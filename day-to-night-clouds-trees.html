@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Altitude — sky, clouds, treeline</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,500;1,6..72,300&family=Archivo:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#080D12; --paper:#F2EFE6;
+    --gutter:clamp(1.5rem,7vw,7.5rem);
+    --measure:34rem;
+    --ridge-0:#54727A; --ridge-1:#33505A; --ridge-2:#182A31;
+    --tree-0:#3E5B62; --tree-1:#22404A; --tree-2:#0E1F26;
+    --fog:0; --fog-tint:#ffffff;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0}
+  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+  body{
+    font-family:"Archivo",system-ui,-apple-system,sans-serif;
+    background:var(--ink);color:var(--paper);
+    -webkit-font-smoothing:antialiased;overflow-x:hidden;
+  }
+
+  .sky{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;contain:strict}
+  .sky__canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .sky__terrain{position:absolute;inset:0}
+  .sky__terrain svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .ridge-0{fill:var(--ridge-0)} .ridge-1{fill:var(--ridge-1)} .ridge-2{fill:var(--ridge-2)}
+  .trees-0{fill:var(--tree-0)} .trees-1{fill:var(--tree-1)} .trees-2{fill:var(--tree-2)}
+  .fog{opacity:var(--fog)}
+
+  main{position:relative;z-index:1}
+  .panel{min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:16vh var(--gutter);max-width:64rem}
+  .eyebrow{font-size:.6875rem;letter-spacing:.2em;text-transform:uppercase;font-weight:500;opacity:.7;margin:0 0 1.5rem}
+  h1{font-family:"Newsreader",Georgia,serif;font-weight:300;font-size:clamp(3.25rem,10vw,8rem);line-height:.9;letter-spacing:-.03em;margin:0;text-wrap:balance}
+  h1 em{font-style:italic;font-weight:500}
+  h2{font-family:"Newsreader",Georgia,serif;font-weight:300;font-size:clamp(1.9rem,4.6vw,3.4rem);line-height:1.04;letter-spacing:-.015em;margin:0 0 1.25rem;text-wrap:balance}
+  p{margin:0;max-width:var(--measure);line-height:1.78;font-size:1.0625rem;opacity:.88}
+  p + p{margin-top:1.1rem}
+  .lede{font-size:1.1875rem;margin-top:2.25rem;opacity:.94}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.875em;background:color-mix(in srgb,var(--paper) 16%,transparent);padding:.15em .45em;border-radius:4px}
+  /* frosted panels: tint, border and sheen are driven by the live sky so
+     contrast holds at both noon and midnight */
+  .glass{
+    position:relative;
+    background:var(--glass-bg,rgba(14,22,34,.34));
+    -webkit-backdrop-filter:blur(20px) saturate(1.35);
+    backdrop-filter:blur(20px) saturate(1.35);
+    border:1px solid var(--glass-border,rgba(255,255,255,.18));
+    border-radius:22px;
+    padding:clamp(1.75rem,4vw,3rem);
+    box-shadow:0 10px 40px rgba(0,0,0,.20), inset 0 1px 0 var(--glass-sheen,rgba(255,255,255,.16));
+    max-width:44rem;
+  }
+  .glass--hero{max-width:48rem}
+  @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+    .glass{background:var(--glass-solid,rgba(10,16,26,.78))}
+  }
+
+  /* flow-in: panels rise and resolve, their contents follow a beat later */
+  .flow{
+    opacity:0;transform:translate3d(0,44px,0) scale(.985);
+    transition:opacity .85s cubic-bezier(.22,1,.36,1),transform .85s cubic-bezier(.22,1,.36,1);
+  }
+  .flow.is-in{opacity:1;transform:none}
+  .flow > *{
+    opacity:0;transform:translate3d(0,14px,0);
+    transition:opacity .6s ease,transform .6s cubic-bezier(.22,1,.36,1);
+  }
+  .flow.is-in > *{opacity:1;transform:none}
+  .flow.is-in > *:nth-child(1){transition-delay:.14s}
+  .flow.is-in > *:nth-child(2){transition-delay:.24s}
+  .flow.is-in > *:nth-child(3){transition-delay:.34s}
+  .flow.is-in > *:nth-child(4){transition-delay:.44s}
+  .hud{
+    position:fixed;right:1rem;bottom:1rem;z-index:2;display:flex;gap:.6rem;align-items:baseline;
+    font-size:.6875rem;letter-spacing:.1em;text-transform:uppercase;padding:.55rem .8rem;border-radius:999px;
+    background:rgba(0,0,0,.36);backdrop-filter:blur(8px);font-variant-numeric:tabular-nums;
+  }
+  .hud b{font-weight:500;min-width:5.5ch;text-align:right}
+  .hud span{opacity:.72}
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    .flow,.flow > *{opacity:1;transform:none;transition:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="sky" id="sky" aria-hidden="true">
+  <canvas class="sky__canvas" id="sky-canvas"></canvas>
+  <div class="sky__terrain">
+    <svg id="terrain" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMax slice" focusable="false">
+      <defs>
+        <linearGradient id="fogGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--fog-tint)" stop-opacity="0"/>
+          <stop offset="55%" stop-color="var(--fog-tint)" stop-opacity=".6"/>
+          <stop offset="100%" stop-color="var(--fog-tint)" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  </div>
+</div>
+
+<main>
+  <section class="panel">
+    <div class="glass glass--hero flow">
+      <p class="eyebrow">Solar geometry, scrolled</p>
+      <h1>Sunset is<br>a <em>geometry</em><br>problem.</h1>
+      <p class="lede">Scroll becomes an hour angle. The sun's altitude follows from spherical trigonometry, and everything else &mdash; sky colour, cloud lighting, how black the trees go, even the tint of these panels &mdash; reads off that one angle.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="glass flow">
+      <h2>Glass that knows the time</h2>
+      <p>A frosted panel is unreadable against a bright noon sky and invisible against a night one, so the tint can't be a fixed value. These cards sample the live sky colour, push it dark, and scale their own opacity against sky luminance &mdash; denser at midday, nearly clear at midnight.</p>
+      <p>The border and the inset top sheen follow the same signal, which is why the edge catches warm light at sunset and cools to blue after.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="glass flow">
+      <h2>Clouds are lit, not tinted</h2>
+      <p>A cloud isn't a grey shape that turns orange at sunset. It's a volume lit from one side, and the direction of that lighting is the whole effect. The gradient across each deck points at the sun's actual screen position, so as the sun drops the illumination swings from overhead to raking side-light.</p>
+      <p>This is why a sunset cloud has a burning rim and a dark belly. Same cloud, two light sources: direct sun above, scattered skylight beneath.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="glass flow">
+      <h2>Two decks</h2>
+      <p>High cirrus catches the light first and holds it longest &mdash; thin ice at altitude stays in sunlight for minutes after the ground is in shadow, which is why the highest clouds are the last things still burning after sunset.</p>
+      <p>Lower cumulus goes into shadow early and stays dark. Both drift at their own rate, tiled seamlessly so there's no seam to find.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="glass flow">
+      <h2>Trees on the ridge</h2>
+      <p>The treelines are generated, not drawn. Each ridge is stored as a list of vertices, so tree bases sit at the interpolated height of the silhouette beneath them rather than floating near it.</p>
+      <p>Firs get stacked tiers with a slight lean; the nearest line mixes in broadleaf crowns and taller individuals for scale. Density and height fall off with distance, and each line is darker than the ridge behind it, because it's closer.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="glass flow">
+      <h2>Air in between</h2>
+      <p>Distant ridges are partly replaced by the atmosphere in front of them, so they shift toward the live horizon colour and lose contrast. As the sun sets that haze contribution drops away and the layers collapse toward silhouette &mdash; which is exactly when the trees stop being green and become shapes.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="glass flow">
+      <h2>Night</h2>
+      <p>Stars arrive in order of apparent magnitude, scintillating harder near the horizon where there's more air. The moon rose gibbous, with earthshine on its dark limb.</p>
+      <p>Copy the <code>.sky</code> markup, the CSS, and the module script. Panel tinting comes free &mdash; add <code>class="glass"</code> to anything.</p>
+    </div>
+  </section>
+</main>
+
+<div class="hud" id="hud">
+  <span>sun</span><b id="hud-alt">+38°</b>
+  <span id="hud-phase">day</span>
+</div>
+
+<script>
+/* ============================================================================
+   SkyStage — atmospheric sky, lit cloud decks, procedural treeline
+   ========================================================================== */
+window.SkyStage = (function () {
+  'use strict';
+
+  const PI = Math.PI, DEG = PI/180;
+  const clamp = (v,a,b)=>v<a?a:v>b?b:v;
+  const clamp01 = v=>clamp(v,0,1);
+  const lerp = (a,b,t)=>a+(b-a)*t;
+  const smoothstep = (e0,e1,x)=>{ const t=clamp01((x-e0)/(e1-e0)); return t*t*(3-2*t); };
+
+  function mulberry(seed){
+    return function(){
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      let t = Math.imul(seed ^ seed>>>15, 1 | seed);
+      t = t + Math.imul(t ^ t>>>7, 61 | t) ^ t;
+      return ((t ^ t>>>14)>>>0) / 4294967296;
+    };
+  }
+
+  /* ---------------- OKLab ---------------- */
+  const s2l = c=>c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4);
+  const l2s = c=>c<=0.0031308?c*12.92:1.055*Math.pow(c,1/2.4)-0.055;
+  function rgbToLab(r,g,b){
+    r=s2l(r/255); g=s2l(g/255); b=s2l(b/255);
+    const l=Math.cbrt(0.4122214708*r+0.5363325363*g+0.0514459929*b);
+    const m=Math.cbrt(0.2119034982*r+0.6806995451*g+0.1073969566*b);
+    const s=Math.cbrt(0.0883024619*r+0.2817188376*g+0.6299787005*b);
+    return [0.2104542553*l+0.7936177850*m-0.0040720468*s,
+            1.9779984951*l-2.4285922050*m+0.4505937099*s,
+            0.0259040371*l+0.7827717662*m-0.8086757660*s];
+  }
+  const hexToLab = hex => { const n=parseInt(hex.slice(1),16); return rgbToLab((n>>16)&255,(n>>8)&255,n&255); };
+  function labToRgb(L,A,B){
+    const l=Math.pow(L+0.3963377774*A+0.2158037573*B,3);
+    const m=Math.pow(L-0.1055613458*A-0.0638541728*B,3);
+    const s=Math.pow(L-0.0894841775*A-1.2914855480*B,3);
+    const q=v=>clamp(Math.round(l2s(v)*255),0,255);
+    return [q( 4.0767416621*l-3.3077115913*m+0.2309699292*s),
+            q(-1.2684380046*l+2.6097574011*m-0.3413193965*s),
+            q(-0.0041960863*l-0.7034186147*m+1.7076147010*s)];
+  }
+  const rgbStr = a=>`rgb(${a[0]} ${a[1]} ${a[2]})`;
+  const rgbaStr = (a,al)=>`rgba(${a[0]},${a[1]},${a[2]},${al})`;
+  const mixLab = (a,b,k)=>[lerp(a[0],b[0],k),lerp(a[1],b[1],k),lerp(a[2],b[2],k)];
+  const mixRgb = (a,b,k)=>{
+    const l = mixLab(rgbToLab(a[0],a[1],a[2]), rgbToLab(b[0],b[1],b[2]), k);
+    return labToRgb(l[0],l[1],l[2]);
+  };
+
+  /* ---------------- sky colour by solar altitude ---------------- */
+  const SKY = [
+    [-18,'#04060F','#070C1C','#0E1124'],
+    [-12,'#0A1226','#141B39','#2C1F3A'],
+    [ -8,'#122043','#2E3358','#63304F'],
+    [ -4,'#1B3059','#4C4C78','#A9453F'],
+    [ -1,'#25406C','#66628C','#D4623A'],
+    [  1,'#2C4A80','#7A7B9E','#EE8646'],
+    [  5,'#37609B','#8B9BBA','#F2AE72'],
+    [ 12,'#3B6FB2','#84ACCD','#E3C9A6'],
+    [ 30,'#3576C4','#77AEDA','#CBDAE3'],
+    [ 65,'#2C6CC0','#6DA6D8','#BCD2E0']
+  ].map(r=>[r[0],hexToLab(r[1]),hexToLab(r[2]),hexToLab(r[3])]);
+
+  function skyBands(alt){
+    let i=1; while(i<SKY.length-1 && alt>SKY[i][0]) i++;
+    const a=SKY[i-1], b=SKY[i], span=b[0]-a[0];
+    const k = span<=0?0:clamp01((alt-a[0])/span);
+    const z=mixLab(a[1],b[1],k), m=mixLab(a[2],b[2],k), h=mixLab(a[3],b[3],k);
+    return { zenithLab:z, midLab:m, horizonLab:h,
+             zenith:labToRgb(z[0],z[1],z[2]), mid:labToRgb(m[0],m[1],m[2]), horizon:labToRgb(h[0],h[1],h[2]) };
+  }
+
+  /* ---------------- solar position ---------------- */
+  const LAT = 42*DEG, DECL = 12*DEG;
+  const H_START = 32*DEG, H_END = 129*DEG;
+  // hour angle is warped so altitude descends at a more even rate: linear
+  // hour angle spends most of the scroll near the top of the arc, where
+  // almost nothing changes.
+  const H_WARP = 0.72;
+  function solar(t){
+    const H = lerp(H_START,H_END,Math.pow(clamp01(t),H_WARP));
+    const sinAlt = Math.sin(DECL)*Math.sin(LAT)+Math.cos(DECL)*Math.cos(LAT)*Math.cos(H);
+    const alt = Math.asin(clamp(sinAlt,-1,1));
+    const cosAz = (Math.sin(DECL)-Math.sin(alt)*Math.sin(LAT))/(Math.cos(alt)*Math.cos(LAT)||1e-6);
+    let az = Math.acos(clamp(cosAz,-1,1));
+    if (H>0) az = 2*PI-az;
+    return { alt:alt/DEG, az:az/DEG };
+  }
+  function airmass(altDeg){
+    const a = Math.max(altDeg,-1.5);
+    return 1/(Math.sin(a*DEG)+0.50572*Math.pow(a+6.07995,-1.6364));
+  }
+  function phaseName(alt){
+    if (alt>12) return 'day';
+    if (alt>3) return 'golden hour';
+    if (alt>-0.833) return 'sunset';
+    if (alt>-6) return 'civil twilight';
+    if (alt>-12) return 'nautical twilight';
+    if (alt>-18) return 'astronomical twilight';
+    return 'night';
+  }
+
+  /* ---------------- terrain: ridge vertices + generated treelines ---------- */
+  const VB = { w:1440, h:900 };
+  const RIDGES = [
+    { y:[636,604,630,592,626,586,622,596,628,594,626,600,622],
+      trees:{ n:120, h:[9,17], w:[3.2,5.2], lean:0.5, kinds:0 } },
+    { y:[700,654,694,646,690,650,692,652,694,656,690,660,688],
+      trees:{ n:84, h:[16,30], w:[5,8], lean:0.9, kinds:0.12 } },
+    { y:[786,742,796,738,790,744,792,754,788,748,790,752,786],
+      trees:{ n:46, h:[30,64], w:[8.5,15], lean:1.5, kinds:0.3 } }
+  ];
+
+  function ridgePath(ys){
+    const step = VB.w/(ys.length-1);
+    let d = 'M0 '+ys[0];
+    for (let i=1;i<ys.length;i++) d += ' L'+(i*step).toFixed(1)+' '+ys[i];
+    return d + ' L'+VB.w+' '+VB.h+' L0 '+VB.h+'Z';
+  }
+  function ridgeYAt(ys,x){
+    const step = VB.w/(ys.length-1);
+    const i = clamp(Math.floor(x/step),0,ys.length-2);
+    return lerp(ys[i],ys[i+1],(x-i*step)/step);
+  }
+
+  function firPath(x,base,h,w,lean){
+    let d = '';
+    for (let i=0;i<3;i++){
+      const f = i/3;
+      const ty = base - h*f;
+      const th = h*(0.5 - f*0.1);
+      const tw = w*(1 - f*0.3);
+      const lx = x + lean*f*h*0.06;
+      d += `M${(lx-tw).toFixed(1)} ${ty.toFixed(1)}`
+        +  `L${(lx+lean*0.4).toFixed(1)} ${(ty-th).toFixed(1)}`
+        +  `L${(lx+tw).toFixed(1)} ${ty.toFixed(1)}Z`;
+    }
+    d += `M${(x-w*0.12).toFixed(1)} ${base.toFixed(1)}L${(x-w*0.12).toFixed(1)} ${(base-h*0.2).toFixed(1)}`
+      +  `L${(x+w*0.12).toFixed(1)} ${(base-h*0.2).toFixed(1)}L${(x+w*0.12).toFixed(1)} ${base.toFixed(1)}Z`;
+    return d;
+  }
+
+  function broadleafPath(x,base,h,w,rng){
+    const ch = h*0.62, cy = base-h*0.72, cw = w*1.5;
+    let d = `M${(x-w*0.16).toFixed(1)} ${base.toFixed(1)}`
+          + `L${(x-w*0.1).toFixed(1)} ${(base-h*0.45).toFixed(1)}`
+          + `L${(x+w*0.1).toFixed(1)} ${(base-h*0.45).toFixed(1)}`
+          + `L${(x+w*0.16).toFixed(1)} ${base.toFixed(1)}Z`;
+    for (let i=0;i<5;i++){
+      const a = (i/5)*2*PI + rng()*0.7;
+      const lx = x + Math.cos(a)*cw*0.42;
+      const ly = cy + Math.sin(a)*ch*0.34;
+      const r = (cw*0.34)*(0.7+rng()*0.5);
+      d += `M${(lx-r).toFixed(1)} ${ly.toFixed(1)}a${r.toFixed(1)} ${r.toFixed(1)} 0 1 0 ${(r*2).toFixed(1)} 0`
+        +  `a${r.toFixed(1)} ${r.toFixed(1)} 0 1 0 ${(-r*2).toFixed(1)} 0Z`;
+    }
+    return d;
+  }
+
+  function buildTerrain(svg){
+    if (!svg) return;
+    const rng = mulberry(90210);
+    const NS = 'http://www.w3.org/2000/svg';
+    const frag = document.createDocumentFragment();
+
+    RIDGES.forEach((ridge, li) => {
+      const p = document.createElementNS(NS,'path');
+      p.setAttribute('class','ridge-'+li);
+      p.setAttribute('d', ridgePath(ridge.y));
+      frag.appendChild(p);
+
+      const cfg = ridge.trees;
+      let d = '';
+      for (let i=0;i<cfg.n;i++){
+        const x = rng()*VB.w;
+        const base = ridgeYAt(ridge.y,x) + 1.5 + rng()*3;
+        const scale = 0.62 + Math.pow(rng(),1.6)*0.85;
+        const th = lerp(cfg.h[0],cfg.h[1],rng())*scale;
+        const tw = lerp(cfg.w[0],cfg.w[1],rng())*scale;
+        const lean = (rng()*2-1)*cfg.lean;
+        d += (rng() < cfg.kinds) ? broadleafPath(x,base,th,tw,rng) : firPath(x,base,th,tw,lean);
+      }
+      const trees = document.createElementNS(NS,'path');
+      trees.setAttribute('class','trees-'+li);
+      trees.setAttribute('d', d);
+      frag.appendChild(trees);
+
+      if (li < 2){
+        const top = Math.min.apply(null, RIDGES[li+1].y);
+        const fog = document.createElementNS(NS,'rect');
+        fog.setAttribute('class','fog');
+        fog.setAttribute('x','0'); fog.setAttribute('width',String(VB.w));
+        fog.setAttribute('y', String(top-26)); fog.setAttribute('height','96');
+        fog.setAttribute('fill','url(#fogGrad)');
+        frag.appendChild(fog);
+      }
+    });
+    svg.appendChild(frag);
+  }
+
+  /* ---------------- cloud decks ----------------
+     An alpha mask is rendered once per resize and tiled horizontally.
+     Each frame it is tinted through source-in with a gradient aimed at the
+     light source, which is what produces a lit rim and a shadowed belly.  */
+  function createDeck(spec, rng){
+    const mask = document.createElement('canvas');
+    const mctx = mask.getContext('2d');
+    const tint = document.createElement('canvas');
+    const tctx = tint.getContext('2d');
+    let mw=0, mh=0, drift=0, ready=false;
+
+    function build(w,h,dpr){
+      if (!mctx || !tctx) return;
+      mh = Math.max(1, Math.round(h*(spec.band[1]-spec.band[0])));
+      mw = Math.max(1, Math.round(w*1.35));
+      mask.width = Math.round(mw*dpr); mask.height = Math.round(mh*dpr);
+      tint.width = Math.round(w*dpr);  tint.height = Math.round(mh*dpr);
+      mctx.setTransform(dpr,0,0,dpr,0,0);
+      tctx.setTransform(dpr,0,0,dpr,0,0);
+      mctx.clearRect(0,0,mw,mh);
+
+      const puff = (px,py,r,a) => {
+        if (px < -r*2 || px > mw+r*2) return;
+        const g = mctx.createRadialGradient(px,py,0,px,py,r);
+        g.addColorStop(0, `rgba(255,255,255,${a})`);
+        g.addColorStop(0.55, `rgba(255,255,255,${a*0.55})`);
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        mctx.fillStyle = g;
+        mctx.beginPath(); mctx.arc(px,py,r,0,2*PI); mctx.fill();
+      };
+
+      const count = Math.max(2, Math.round(spec.count*(w/1400)));
+      for (let c=0;c<count;c++){
+        const cx = rng()*mw;
+        const cy = mh*(0.2 + rng()*0.58);
+        const rx = w*(spec.size[0] + rng()*(spec.size[1]-spec.size[0]));
+        const lobes = spec.lobes[0] + Math.floor(rng()*(spec.lobes[1]-spec.lobes[0]+1));
+        for (let l=0;l<lobes;l++){
+          const t = lobes>1 ? l/(lobes-1) : 0.5;
+          const ox = (t-0.5)*rx*spec.spread;
+          const oy = (rng()*2-1)*rx*spec.thickness - Math.pow(Math.abs(t-0.5)*2,2)*rx*0.10;
+          const r = rx*(spec.lobe[0] + rng()*(spec.lobe[1]-spec.lobe[0]));
+          const a = spec.alpha*(0.6+rng()*0.55);
+          puff(cx+ox, cy+oy, r, a);
+          puff(cx+ox-mw, cy+oy, r, a);   // wrap across the seam
+          puff(cx+ox+mw, cy+oy, r, a);
+        }
+      }
+      ready = true;
+    }
+
+    function draw(ctx,w,h,dt,light,litCol,shadowCol,opacity,motion){
+      if (!ready || opacity<=0.006) return;
+      if (motion) drift = (drift + spec.speed*dt) % mw;
+      const yTop = h*spec.band[0];
+
+      tctx.clearRect(0,0,w,mh);
+      const off = -drift;
+      tctx.drawImage(mask,0,0,mask.width,mask.height, off,0,mw,mh);
+      if (off+mw < w) tctx.drawImage(mask,0,0,mask.width,mask.height, off+mw,0,mw,mh);
+
+      tctx.save();
+      tctx.globalCompositeOperation = 'source-in';
+      const dx = light.x - w*0.5, dy = (light.y - yTop) - mh*0.5;
+      const len = Math.hypot(dx,dy) || 1;
+      const reach = Math.max(w,mh)*0.62;
+      const g = tctx.createLinearGradient(
+        w*0.5 + (dx/len)*reach, mh*0.5 + (dy/len)*reach,
+        w*0.5 - (dx/len)*reach, mh*0.5 - (dy/len)*reach
+      );
+      g.addColorStop(0, rgbStr(litCol));
+      g.addColorStop(0.42, rgbStr(mixRgb(litCol, shadowCol, 0.45)));
+      g.addColorStop(1, rgbStr(shadowCol));
+      tctx.fillStyle = g;
+      tctx.fillRect(0,0,w,mh);
+      tctx.restore();
+
+      ctx.save();
+      ctx.globalAlpha = clamp01(opacity);
+      ctx.drawImage(tint,0,0,tint.width,tint.height, 0,yTop,w,mh);
+      ctx.restore();
+    }
+
+    return { build, draw };
+  }
+
+  const CIRRUS  = { band:[0.02,0.34], count:7, size:[0.13,0.30], lobes:[7,13], spread:2.1,
+                    thickness:0.055, lobe:[0.05,0.11], alpha:0.34, speed:9 };
+  const CUMULUS = { band:[0.20,0.44], count:5, size:[0.09,0.19], lobes:[5,9], spread:1.5,
+                    thickness:0.16, lobe:[0.14,0.26], alpha:0.68, speed:16 };
+
+  /* ---------------- celestial field ---------------- */
+  function makeField(rng,count){
+    const stars=[], band=[];
+    for (let i=0;i<count;i++){
+      const mag = 1.2 + Math.pow(rng(),0.55)*5.3;
+      const ct = rng();
+      const col = ct<0.12?[255,208,170]:ct<0.34?[255,236,214]:ct<0.72?[248,248,255]:[206,224,255];
+      stars.push({ ra:rng()*2*PI, dec:(rng()*2-1)*1.35, mag, col, tw:rng()*2*PI });
+    }
+    for (let i=0;i<170;i++){
+      const u = rng()*2*PI;
+      band.push({ ra:u, dec:0.32*Math.sin(u)+(rng()*2-1)*0.16, r:14+rng()*40, a:0.028+rng()*0.05 });
+    }
+    return { stars, band };
+  }
+
+  /* ---------------- renderer ---------------- */
+  function createRenderer(canvas){
+    const ctx = canvas.getContext && canvas.getContext('2d');
+    if (!ctx) return null;
+    let w=0,h=0,dpr=1,horizonY=0,field=null;
+    const cirrus  = createDeck(CIRRUS,  mulberry(1717));
+    const cumulus = createDeck(CUMULUS, mulberry(3131));
+
+    function resize(){
+      dpr = clamp(window.devicePixelRatio||1,1,2);
+      const rect = canvas.getBoundingClientRect();
+      w = Math.max(1,Math.round(rect.width));
+      h = Math.max(1,Math.round(rect.height));
+      canvas.width = Math.round(w*dpr); canvas.height = Math.round(h*dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      horizonY = h*0.705;
+      field = makeField(mulberry(20250807), clamp(Math.round(w*h/2600),220,1100));
+      cirrus.build(w,h,dpr);
+      cumulus.build(w,h,dpr);
+    }
+
+    // azimuth window sized to the traverse the sun actually makes, so the
+    // disc stays in frame all the way down to the horizon
+    const AZ_ORIGIN = 222, AZ_SPAN = 96;
+    const azToX = az => w*((az-AZ_ORIGIN)/AZ_SPAN);
+    const altToY = alt => horizonY - Math.sin(alt*DEG)*(h*0.82);
+
+    function drawSky(bands){
+      const g = ctx.createLinearGradient(0,0,0,horizonY);
+      g.addColorStop(0, rgbStr(bands.zenith));
+      g.addColorStop(0.46, rgbStr(bands.mid));
+      g.addColorStop(1, rgbStr(bands.horizon));
+      ctx.fillStyle = g; ctx.fillRect(0,0,w,horizonY+2);
+      ctx.fillStyle = rgbStr(bands.horizon); ctx.fillRect(0,horizonY,w,h-horizonY);
+    }
+
+    function drawStars(vis,time,motion){
+      if (vis<=0.004) return;
+      const rot = time*0.0000085;
+      const poleX = -w*0.25, poleY = -h*0.55;
+      ctx.save();
+      if (vis>0.55){
+        const mwA = smoothstep(0.55,1,vis);
+        ctx.fillStyle = '#CBD7F2';
+        for (let i=0;i<field.band.length;i++){
+          const s = field.band[i], a = s.ra+rot;
+          const x = poleX + Math.cos(a)*(w*1.05) + w*0.35;
+          const y = poleY + Math.sin(a)*(h*0.9) + s.dec*h*0.5 + h*0.5;
+          if (y>horizonY||y<-60) continue;
+          ctx.globalAlpha = s.a*mwA;
+          ctx.beginPath(); ctx.arc(x,y,s.r,0,2*PI); ctx.fill();
+        }
+      }
+      for (let i=0;i<field.stars.length;i++){
+        const s = field.stars[i], a = s.ra+rot;
+        const x = poleX + Math.cos(a)*(w*1.15) + w*0.42;
+        const y = poleY + Math.sin(a)*(h*1.0) + s.dec*h*0.42 + h*0.5;
+        if (y>horizonY-2||y<-20||x<-20||x>w+20) continue;
+        const need = smoothstep(1.2,6.6,s.mag);
+        const shown = smoothstep(need*0.86, need*0.86+0.22, vis);
+        if (shown<=0.01) continue;
+        const airFrac = clamp01((y-h*0.05)/(horizonY-h*0.05));
+        const twAmp = motion ? 0.10+0.30*Math.pow(airFrac,2.2) : 0;
+        const flick = 1-twAmp+twAmp*Math.sin(time*0.0032+s.tw*7);
+        const bright = (1-need*0.78)*shown*flick;
+        const r = 0.35+(1-need)*1.15;
+        ctx.globalAlpha = clamp01(bright);
+        ctx.fillStyle = rgbStr(s.col);
+        ctx.beginPath(); ctx.arc(x,y,r,0,2*PI); ctx.fill();
+        if (need<0.22){
+          ctx.globalAlpha = clamp01(bright*0.16);
+          ctx.beginPath(); ctx.arc(x,y,r*4.5,0,2*PI); ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawEarthShadow(sun){
+      const strength = smoothstep(-9,-3.5,sun.alt)*smoothstep(0.5,-1.2,sun.alt);
+      if (strength<=0.01) return;
+      const antiX = azToX(sun.az>180 ? sun.az-180 : sun.az+180);
+      const climb = smoothstep(0,-8,sun.alt);
+      const beltY = horizonY - h*(0.055+climb*0.14);
+      const shadowY = horizonY - h*(climb*0.10);
+      ctx.save();
+      const belt = ctx.createRadialGradient(antiX,beltY,0,antiX,beltY,w*0.72);
+      belt.addColorStop(0, `rgba(228,146,150,${0.42*strength})`);
+      belt.addColorStop(0.5, `rgba(196,124,142,${0.16*strength})`);
+      belt.addColorStop(1,'rgba(196,124,142,0)');
+      ctx.fillStyle = belt; ctx.fillRect(0,beltY-h*0.16,w,h*0.3);
+      const sh = ctx.createLinearGradient(0,shadowY-h*0.02,0,horizonY);
+      sh.addColorStop(0,'rgba(18,22,44,0)');
+      sh.addColorStop(1,`rgba(18,22,44,${0.34*strength})`);
+      ctx.fillStyle = sh; ctx.fillRect(0,shadowY-h*0.02,w,horizonY-shadowY+h*0.03);
+      ctx.restore();
+    }
+
+    function sunColour(sun){
+      const redden = smoothstep(14,-1,sun.alt);
+      return [255,
+        clamp(Math.round(lerp(248,132,redden)),0,255),
+        clamp(Math.round(lerp(228,64,redden)),0,255)];
+    }
+
+    function drawSun(sun){
+      const x = azToX(sun.az), y = altToY(sun.alt);
+      const ext = Math.exp(-0.16*(airmass(sun.alt)-1));
+      const redden = smoothstep(14,-1,sun.alt);
+      const disc = sunColour(sun);
+      const vis = clamp01(ext)*(1-smoothstep(0.6,-1.4,sun.alt));
+      const r = lerp(w*0.016,w*0.026,redden);
+      ctx.save();
+      const mie = smoothstep(20,-2,sun.alt)*smoothstep(-8,-2,sun.alt);
+      if (mie>0.01){
+        const gy = Math.min(y,horizonY);
+        const gl = ctx.createRadialGradient(x,gy,0,x,gy,w*0.85);
+        gl.addColorStop(0, rgbaStr(disc,0.40*mie));
+        gl.addColorStop(0.22, rgbaStr(disc,0.16*mie));
+        gl.addColorStop(0.6, rgbaStr([232,140,86],0.05*mie));
+        gl.addColorStop(1,'rgba(232,140,86,0)');
+        ctx.fillStyle = gl; ctx.fillRect(0,0,w,horizonY+2);
+      }
+      if (vis>0.01){
+        const bloom = ctx.createRadialGradient(x,y,0,x,y,r*7);
+        bloom.addColorStop(0, rgbaStr(disc,0.5*vis));
+        bloom.addColorStop(0.35, rgbaStr(disc,0.14*vis));
+        bloom.addColorStop(1, rgbaStr(disc,0));
+        ctx.fillStyle = bloom; ctx.beginPath(); ctx.arc(x,y,r*7,0,2*PI); ctx.fill();
+        ctx.globalAlpha = clamp01(vis);
+        ctx.fillStyle = rgbStr(disc);
+        ctx.beginPath(); ctx.arc(x,y,r,0,2*PI); ctx.fill();
+      }
+      ctx.restore();
+      return { x, y };
+    }
+
+    function drawMoon(sun){
+      const up = smoothstep(6,-10,sun.alt);
+      if (up<=0.01) return null;
+      const x = azToX(231+up*24), y = altToY(lerp(-6,34,up));
+      if (y>horizonY) return null;
+      const r = w*0.013;
+      const a = clamp01(up)*smoothstep(-1,-6,sun.alt);
+      ctx.save();
+      const halo = ctx.createRadialGradient(x,y,0,x,y,r*9);
+      halo.addColorStop(0,`rgba(226,232,250,${0.20*a})`);
+      halo.addColorStop(1,'rgba(226,232,250,0)');
+      ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(x,y,r*9,0,2*PI); ctx.fill();
+      ctx.globalAlpha = 0.10*a; ctx.fillStyle = '#8C97BE';
+      ctx.beginPath(); ctx.arc(x,y,r,0,2*PI); ctx.fill();
+      ctx.globalAlpha = a;
+      ctx.beginPath(); ctx.arc(x,y,r,0,2*PI); ctx.clip();
+      ctx.fillStyle = '#F3F1E6';
+      ctx.beginPath(); ctx.arc(x,y,r,0,2*PI); ctx.fill();
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath(); ctx.arc(x-r*0.72,y-r*0.16,r*0.98,0,2*PI); ctx.fill();
+      ctx.restore();
+      return { x, y };
+    }
+
+    /* Direct sun on the lit face, scattered skylight on the shadowed face.
+       High cirrus stays in sunlight several degrees after the sun has set. */
+    function deckColours(sun, bands, isHigh){
+      const holdover = isHigh ? 4.2 : 1.0;
+      const litAmount = smoothstep(-holdover, 2.5, sun.alt);
+      const redden = smoothstep(16,-1.5,sun.alt);
+      const warm = mixRgb([252,250,246], sunColour(sun), redden*0.92);
+      const litLab = mixLab(rgbToLab(warm[0],warm[1],warm[2]), bands.midLab, 1-litAmount);
+      const shLab = [bands.midLab[0]*lerp(0.72,0.5,1-litAmount), bands.midLab[1]*1.05, bands.midLab[2]*1.15];
+      return {
+        lit: labToRgb(litLab[0],litLab[1],litLab[2]),
+        shadow: labToRgb(shLab[0],shLab[1],shLab[2])
+      };
+    }
+
+    return {
+      resize,
+      render(sun, time, dt, motion){
+        if (!field) resize();
+        const bands = skyBands(sun.alt);
+        const starVis = smoothstep(-2.5,-16,sun.alt);
+        ctx.clearRect(0,0,w,h);
+        drawSky(bands);
+        drawStars(starVis, time, motion);
+        drawEarthShadow(sun);
+        const sunPos = drawSun(sun);
+        const moon = drawMoon(sun);
+
+        // decks sit in front of the sun and stars, behind the terrain
+        const light = (moon && sun.alt < -6) ? moon : sunPos;
+        const hi = deckColours(sun, bands, true);
+        const lo = deckColours(sun, bands, false);
+        const thin = lerp(1, 0.55, smoothstep(-6,-16,sun.alt));
+        cirrus.draw(ctx,w,h,dt, light, hi.lit, hi.shadow, 0.72*thin, motion);
+        cumulus.draw(ctx,w,h,dt, light, lo.lit, lo.shadow, 0.90*thin, motion);
+
+        return { bands, starVis };
+      },
+      dispose(){ ctx.clearRect(0,0,w,h); }
+    };
+  }
+
+  /* ---------------- instance ---------------- */
+  let live = null;
+
+  function init(options){
+    if (live) return live;
+    if (typeof document === 'undefined') return null;
+
+    const opts = Object.assign({
+      stage:'#sky', canvas:'#sky-canvas', svg:'#terrain',
+      scroller:null, target:document.documentElement,
+      smoothing:0.10, snapThreshold:0.25, manual:false
+    }, options||{});
+
+    const pick = v => typeof v==='string' ? document.querySelector(v) : v;
+    const stage = pick(opts.stage);
+    if (!stage) return null;
+    const canvasEl = pick(opts.canvas);
+    const renderer = canvasEl ? createRenderer(canvasEl) : null;
+    buildTerrain(pick(opts.svg));
+
+    const root = opts.target, scroller = opts.scroller;
+    const reduced = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches:false };
+    const subs = new Set();
+    let target=0,current=0,lastPhase=null;
+    let raf=0,lastTime=0,running=false;
+    let visible=!document.hidden,onscreen=true,needsResize=false,disposed=false;
+
+    function readScroll(){
+      if (opts.manual) return target;
+      try{
+        if (scroller){
+          const max = scroller.scrollHeight-scroller.clientHeight;
+          return max>0?clamp01(scroller.scrollTop/max):0;
+        }
+        const doc = document.documentElement;
+        const max = (doc.scrollHeight||0)-window.innerHeight;
+        return max>0?clamp01((window.scrollY||doc.scrollTop||0)/max):0;
+      }catch(_){ return 0; }
+    }
+
+    const ROCK    = [hexToLab('#63808A'), hexToLab('#3C5A66'), hexToLab('#1C2E37')];
+    const FOLIAGE = [hexToLab('#3C6155'), hexToLab('#26483F'), hexToLab('#132A26')];
+    const HAZE    = [0.60, 0.34, 0.12];
+
+    function writeTerrain(bands, sun){
+      const night = smoothstep(2,-14,sun.alt);
+      const hz = bands.horizonLab;
+      for (let i=0;i<3;i++){
+        const k = HAZE[i]*(1-night*0.55);
+        const r = mixLab(ROCK[i], hz, k);
+        root.style.setProperty('--ridge-'+i, rgbStr(labToRgb(
+          r[0]*(1-night*0.62), r[1]*(1-night*0.35), r[2]*(1-night*0.35))));
+        // foliage is nearer than the rock behind it: less haze, deeper value
+        const f = mixLab(FOLIAGE[i], hz, k*0.62);
+        root.style.setProperty('--tree-'+i, rgbStr(labToRgb(
+          f[0]*(1-night*0.70)*0.94, f[1]*(1-night*0.40), f[2]*(1-night*0.40))));
+      }
+      const fog = smoothstep(6,-4,sun.alt)*smoothstep(-16,-6,sun.alt);
+      root.style.setProperty('--fog', fog.toFixed(3));
+      root.style.setProperty('--fog-tint', rgbStr(bands.horizon));
+      writeGlass(bands);
+    }
+
+    /* Frosted panels take the sky's own hue, pushed dark, and scale their
+       opacity against sky luminance: a fixed tint is unreadable at noon and
+       invisible at midnight. Text stays light, so the panel only has to
+       guarantee it is always darker than whatever is behind it.            */
+    function writeGlass(bands){
+      const L = clamp01(bands.midLab[0]);            // sky luminance, 0..1
+      const bright = smoothstep(0.18, 0.56, L);
+      // tinted glass: sky hue at a fixed low lightness, chroma pulled in
+      const tint = labToRgb(0.20, bands.midLab[1]*0.55, bands.midLab[2]*0.55);
+      // the ceiling is set by the brightest thing a panel can drift over,
+      // which is a sunlit cloud rather than the sky itself
+      const alpha = lerp(0.22, 0.64, bright);
+      root.style.setProperty('--glass-bg', rgbaStr(tint, alpha.toFixed(3)));
+      root.style.setProperty('--glass-solid', rgbaStr(tint, Math.min(0.95, alpha+0.28).toFixed(3)));
+      // the edge picks up whatever light is actually in the sky
+      const edge = labToRgb(
+        lerp(0.86, 0.66, bright),
+        bands.horizonLab[1]*0.75,
+        bands.horizonLab[2]*0.75
+      );
+      root.style.setProperty('--glass-border', rgbaStr(edge, (0.16+bright*0.16).toFixed(3)));
+      root.style.setProperty('--glass-sheen', rgbaStr(edge, (0.10+bright*0.14).toFixed(3)));
+    }
+
+    function frame(time){
+      raf = 0;
+      if (disposed) return;
+      const dt = lastTime ? Math.min(0.05,(time-lastTime)/1000) : 0.016;
+      lastTime = time;
+      if (needsResize){ needsResize=false; if (renderer) renderer.resize(); }
+
+      target = readScroll();
+      const diff = target-current;
+      if (reduced.matches || opts.smoothing<=0 || Math.abs(diff)>opts.snapThreshold) current = target;
+      else{
+        current += diff*(1-Math.exp(-dt/opts.smoothing));
+        if (Math.abs(target-current)<0.0002) current = target;
+      }
+
+      const sun = solar(current);
+      const out = renderer ? renderer.render(sun, time, dt, !reduced.matches) : null;
+      if (out) writeTerrain(out.bands, sun);
+
+      const phase = phaseName(sun.alt);
+      const changed = phase!==lastPhase;
+      lastPhase = phase;
+      if (subs.size) subs.forEach(fn=>{
+        try{ fn({ progress:current, altitude:sun.alt, azimuth:sun.az, phase, phaseChanged:changed }); }catch(_){}
+      });
+
+      // decks drift continuously, so keep the loop alive unless reduced-motion
+      const settled = Math.abs(target-current)<0.0002;
+      if (running && (!reduced.matches || !settled)) schedule();
+    }
+
+    function schedule(){ if(!raf && running && !disposed) raf = requestAnimationFrame(frame); }
+    function kick(){ lastTime = 0; schedule(); }
+    function setRunning(n){
+      if (n===running) return;
+      running = n;
+      if (running) kick(); else if (raf){ cancelAnimationFrame(raf); raf=0; }
+    }
+    const evaluate = ()=>setRunning(visible && onscreen && !disposed);
+
+    const onScroll = ()=>schedule();
+    const onResize = ()=>{ needsResize=true; schedule(); };
+    const onVis = ()=>{ visible=!document.hidden; evaluate(); };
+    const onMotion = ()=>kick();
+
+    const scrollEl = scroller || window;
+    scrollEl.addEventListener('scroll', onScroll, { passive:true });
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    document.addEventListener('visibilitychange', onVis);
+    if (reduced.addEventListener) reduced.addEventListener('change', onMotion);
+
+    let ro=null, io=null;
+    if (window.ResizeObserver && canvasEl){ ro = new ResizeObserver(onResize); ro.observe(canvasEl); }
+    if (window.IntersectionObserver){
+      io = new IntersectionObserver(es=>{ onscreen = es.some(e=>e.isIntersecting); evaluate(); });
+      io.observe(stage);
+    }
+
+    current = target = readScroll();
+    evaluate(); kick();
+
+    live = {
+      get progress(){ return current; },
+      get sun(){ return solar(current); },
+      get phase(){ return lastPhase; },
+      setProgress(t){ opts.manual=true; target=clamp01(Number(t)||0); schedule(); return live; },
+      resume(){ opts.manual=false; schedule(); return live; },
+      subscribe(fn){ if(typeof fn!=='function') return ()=>{}; subs.add(fn); return ()=>subs.delete(fn); },
+      refresh(){ onResize(); return live; },
+      destroy(){
+        disposed=true; setRunning(false);
+        scrollEl.removeEventListener('scroll', onScroll);
+        window.removeEventListener('resize', onResize);
+        window.removeEventListener('orientationchange', onResize);
+        document.removeEventListener('visibilitychange', onVis);
+        if (reduced.removeEventListener) reduced.removeEventListener('change', onMotion);
+        if (ro) ro.disconnect();
+        if (io) io.disconnect();
+        if (renderer) renderer.dispose();
+        subs.clear(); live=null;
+      }
+    };
+    return live;
+  }
+
+  return { init, solar, skyBands, get instance(){ return live; } };
+})();
+
+/* ---------------- page wiring ---------------- */
+(function(){
+  const sky = window.SkyStage.init();
+  const altOut = document.getElementById('hud-alt');
+  const phaseOut = document.getElementById('hud-phase');
+  if (sky && altOut){
+    sky.subscribe(({ altitude, phase, phaseChanged })=>{
+      const a = Math.round(altitude);
+      altOut.textContent = (a>=0?'+':'−')+Math.abs(a)+'°';
+      if (phaseChanged) phaseOut.textContent = phase;
+    });
+  }
+  const items = document.querySelectorAll('.flow');
+  if (!window.IntersectionObserver) items.forEach(el=>el.classList.add('is-in'));
+  else{
+    const io = new IntersectionObserver((es,obs)=>{
+      es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('is-in'); obs.unobserve(e.target); } });
+    }, { threshold:0.2, rootMargin:'0px 0px -8% 0px' });
+    items.forEach(el=>io.observe(el));
+  }
+})();
+</script>
+</body>
+</html>
