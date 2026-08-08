@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Agnikarma — the probe, and how deep it goes</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,500;1,6..72,300&family=Archivo:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F4F0E6; --bg-0:#141009; --bg-1:#0A0806; --accent:#E8B45C;
+    --glass-bg:rgba(20,15,9,.62); --glass-border:rgba(255,255,255,.16);
+    --glass-sheen:rgba(255,255,255,.12);
+    --gutter:clamp(1.25rem,5vw,5rem);
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0}
+  html{scroll-behavior:smooth}
+  body{font-family:"Archivo",system-ui,sans-serif;color:var(--paper);
+    background:var(--bg-1);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+
+  .stage{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;contain:strict}
+  .stage__canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+  main{position:relative;z-index:1}
+  .panel{min-height:100svh;display:flex;flex-direction:column;justify-content:center;
+    align-items:flex-end;padding:14vh var(--gutter)}
+  .panel--hero{align-items:center}
+  .glass{position:relative;width:min(30rem,100%);
+    background:var(--glass-bg);
+    -webkit-backdrop-filter:blur(22px) saturate(1.2);backdrop-filter:blur(22px) saturate(1.2);
+    border:1px solid var(--glass-border);border-radius:22px;
+    padding:clamp(1.4rem,3vw,2.2rem);
+    box-shadow:0 10px 44px rgba(0,0,0,.4), inset 0 1px 0 var(--glass-sheen)}
+  .panel--hero .glass{width:min(38rem,100%)}
+
+  .flow{opacity:0;transform:translate3d(0,40px,0);
+    transition:opacity .8s cubic-bezier(.22,1,.36,1),transform .8s cubic-bezier(.22,1,.36,1)}
+  .flow.is-in{opacity:1;transform:none}
+
+  .eyebrow{font-size:.6875rem;letter-spacing:.2em;text-transform:uppercase;font-weight:500;
+    opacity:.7;margin:0 0 1.1rem}
+  h1{font-family:"Newsreader",Georgia,serif;font-weight:300;
+    font-size:clamp(2.3rem,5.6vw,4.2rem);line-height:1;letter-spacing:-.03em;margin:0}
+  h1 em{font-style:italic;font-weight:500}
+  h2{font-family:"Newsreader",Georgia,serif;font-weight:300;
+    font-size:clamp(1.5rem,3.2vw,2.3rem);line-height:1.1;margin:0 0 1rem}
+  h2 .sa{display:block;font-size:.4em;letter-spacing:.16em;text-transform:uppercase;
+    font-family:"Archivo",sans-serif;font-weight:500;opacity:.66;margin-bottom:.7rem;color:var(--accent)}
+  p{margin:0;line-height:1.75;font-size:1rem;opacity:.9}
+  p + p{margin-top:.9rem}
+  .lede{font-size:1.1rem;margin-top:1.6rem}
+  strong{font-weight:500;color:var(--accent)}
+  .warn{font-size:.88rem;opacity:.9;border-left:2px solid var(--accent);
+    padding-left:.9rem;margin-top:1.3rem}
+  ul{margin:1rem 0 0;padding-left:1rem}
+  li{line-height:1.65;font-size:.95rem;opacity:.88;margin-bottom:.4rem}
+
+  .hud{position:fixed;left:1rem;bottom:1rem;z-index:2;pointer-events:auto;
+    padding:.7rem .8rem;border-radius:16px;background:rgba(0,0,0,.55);
+    backdrop-filter:blur(10px);font-size:.6875rem;letter-spacing:.08em;
+    text-transform:uppercase;font-variant-numeric:tabular-nums;min-width:12.5rem}
+  .hud__row{display:flex;gap:.28rem;flex-wrap:wrap}
+  .hud__row button{flex:1 1 44%;font:inherit;font-size:.5625rem;letter-spacing:.07em;
+    text-transform:uppercase;color:var(--paper);background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.16);border-radius:8px;padding:.4rem .2rem;cursor:pointer}
+  .hud__row button:hover{background:rgba(255,255,255,.16)}
+  .hud__row button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#1A1206}
+  .hud__read{margin-top:.65rem;padding-top:.65rem;border-top:1px solid rgba(255,255,255,.16)}
+  .hud__read div{display:flex;justify-content:space-between;gap:.8rem;margin-bottom:.22rem}
+  .hud__read b{font-weight:500;color:var(--accent);text-transform:none}
+  .hud__verdict{margin-top:.45rem;font-size:.5625rem;padding:.3rem .5rem;border-radius:6px;
+    text-align:center;background:rgba(255,255,255,.10)}
+  .hud__verdict.ok{background:rgba(232,180,92,.24);color:var(--accent)}
+
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}
+    .flow{opacity:1;transform:none;transition:none}}
+  @media (max-width:760px){.panel{align-items:stretch}.glass{width:100%}
+    .hud{left:.7rem;bottom:.7rem;min-width:11rem}}
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage" aria-hidden="true">
+  <canvas class="stage__canvas" id="c"></canvas>
+</div>
+
+<main>
+  <section class="panel panel--hero">
+    <div class="glass flow">
+      <p class="eyebrow">Agnikarma · heat, and where it goes</p>
+      <h1>The probe gives<br>its heat up. The<br>body <em>takes</em> it.</h1>
+      <p class="lede">A gold probe comes off the coals red hot, touches the skin, and cools as the heat crosses into the tissue and spreads. Watch it travel down through the layers — and watch the probe fade from red back to plain gold as it loses what it was carrying.</p>
+      <p class="warn">This shows heat moving through tissue. Nothing here is charred. The procedure itself does produce a controlled burn at the surface; what is drawn here is the conduction underneath it.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="glass flow">
+      <h2><span class="sa">Five layers</span>What the heat has to cross</h2>
+      <p>Each layer carries heat differently, and that is what shapes the whole picture.</p>
+      <ul>
+        <li><strong>Epidermis</strong> — a tenth of a millimetre. Crossed almost at once.</li>
+        <li><strong>Dermis</strong> — about two millimetres, and full of blood. Heat spreads well here, and is also carried away fastest.</li>
+        <li><strong>Fat</strong> — the insulator. Watch the warmth slow as it arrives, and arrive below it late and weakened.</li>
+        <li><strong>Muscle</strong> — conducts well again, so the warmth moves on more freely.</li>
+        <li><strong>Bone</strong> — a dense outer shell over a spongy interior. Slow to take heat, and the last to feel it.</li>
+      </ul>
+      <p style="margin-top:1rem">This is a real diffusion calculation, not a painted glow: each cell of the grid takes its conductivity from the layer it sits in.</p>
+      <p>When the probe meets the skin it also sends a front down through the tissue, which you can see travelling ahead of the heat and reaching the bone in under a second. Nothing chars and nothing smokes — the probe is warm, not incendiary.</p>
+      <p>The warmth is drawn across a full thermal spectrum rather than in one colour, because a single hue cannot show gradation: at one colour, a fifth of the way up and two thirds of the way up look the same. Here the leading edge is violet and blue, the body of it green and yellow, and only the contact itself goes white.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="glass flow">
+      <h2><span class="sa">The pulse</span>Why it cannot travel far</h2>
+      <p>The tissue is not still. There is a pulse at sixty-four beats a minute — the whole block lifts a little on each beat, and the specks drifting through the dermis and fat move with it.</p>
+      <p>Blood is what limits all of this. It clears heat faster than tissue conducts it, which is why the depth reached settles where it does rather than creeping ever deeper. That cooling is in the calculation, rising and falling with the pulse, even though the vessels themselves are not drawn.</p>
+      <p>It is also why the deep layers here warm on a compressed timescale. At life-size rates almost nothing below the dermis would change at all.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="glass flow">
+      <h2><span class="sa">Pressure</span>How much heat crosses</h2>
+      <p>Try the four settings and watch the dent, the readout, and how far the warmth gets.</p>
+      <ul>
+        <li><strong>Light touch</strong> — barely in contact. Little crosses, and the front dies away in the fat. The bone never feels it.</li>
+        <li><strong>Unsteady</strong> — a wavering hand, so the dent is lumpy and drifts and the heat goes in unevenly. It gets further than a light touch, and still stops short of bone.</li>
+        <li><strong>Steady</strong> — firm and even. Broad fronts carry all the way down and the bone warms.</li>
+        <li><strong>Firm</strong> — pressed hard. The widest contact, the most delivered, and the deepest reach.</li>
+      </ul>
+      <p style="margin-top:1rem">Pressing spreads the contact, and a wider contact hands over more heat. The dent is real: the soft tissue is redrawn compressed into it, so every layer above the bone bends with the surface — epidermis most, then dermis, then fat, then muscle, each a little less than the one above. The bone does not move at all. It is rigid, so it holds its line and the flesh is squashed against it, which is what pressing on a knee actually does.</p>
+    </div>
+  </section>
+
+  <section class="panel panel--hero">
+    <div class="glass flow">
+      <h2><span class="sa">Red hot to gold</span>The probe is a thermometer</h2>
+      <p>Its colour is its temperature. It arrives already hot, straight off the coals, and descends that way. As it gives the heat up it passes down through yellow, orange and red, settling toward plain gold once it has little left. Then it is returned to the coals and comes back hot again.</p>
+      <p>Gold is the classical choice for a reason that shows here: it takes heat up evenly and lets it go evenly, and it does not corrode, so nothing reactive is left behind on the skin.</p>
+      <p class="warn">Ayurveda is a traditional system of medicine and the claims here are its own. The real procedure is carried out by trained practitioners and does produce a burn. For anything concerning your own health, speak to a qualified professional.</p>
+    </div>
+  </section>
+</main>
+
+<div class="hud" id="hud">
+  <div class="hud__row" role="group" aria-label="Burn grade">
+    <button type="button" data-g="0" aria-pressed="false">light touch</button>
+    <button type="button" data-g="1" aria-pressed="false">unsteady</button>
+    <button type="button" data-g="2" aria-pressed="true">steady</button>
+    <button type="button" data-g="3" aria-pressed="false">firm</button>
+  </div>
+  <div class="hud__read">
+    <div><span>grade</span><b id="g-name">steady</b></div>
+    <div><span>pressure</span><b id="g-force">firm and steady</b></div>
+
+  </div>
+</div>
+
+<script>
+/* ============================================================================
+   A section through skin, with the probe on a contact cycle.
+
+   The tissue texture is expensive — collagen, follicles, fat lobules, bone —
+   so it is drawn once into an offscreen canvas and blitted each frame. Only the
+   burn, the rod and the glow are redrawn.
+   ========================================================================== */
+(function () {
+  'use strict';
+  const PI = Math.PI;
+  const clamp = (v,a,b)=>v<a?a:v>b?b:v;
+  const clamp01 = v=>clamp(v,0,1);
+  const lerp = (a,b,t)=>a+(b-a)*t;
+  const smoothstep=(e0,e1,x)=>{const t=clamp01((x-e0)/(e1-e0));return t*t*(3-2*t);};
+  function mulberry(seed){
+    return function(){ seed|=0; seed=seed+0x6D2B79F5|0;
+      let t=Math.imul(seed^seed>>>15,1|seed);
+      t=t+Math.imul(t^t>>>7,61|t)^t;
+      return ((t^t>>>14)>>>0)/4294967296; };
+  }
+
+  /* depth in mm -> fraction of the tissue block. Compressed, and the axis is
+     drawn in mm alongside so the compression is visible rather than hidden. */
+  const DEPTH = [[0,0],[0.10,0.030],[2.5,0.190],[9.0,0.380],[22.0,0.660],[34.0,1.0]];
+  /* Thermal diffusivity, relative. Fat is the insulator — it is why heat
+     hesitates at that layer and why the warmth below it arrives late and
+     blunted. Bone conducts poorly too. */
+  const LAYERS = [
+    { name:'epidermis', to:0.10, a:0.62 },
+    { name:'dermis',    to:2.50, a:0.72 },
+    { name:'fat',       to:9.00, a:0.28 },
+    { name:'muscle',    to:22.0, a:0.80 },
+    { name:'bone',      to:34.0, a:0.34 }
+  ];
+  function layerAt(mm){
+    for (let i=0;i<LAYERS.length;i++) if (mm<=LAYERS[i].to) return LAYERS[i];
+    return LAYERS[LAYERS.length-1];
+  }
+  function mmAtFrac(f){
+    for (let i=1;i<DEPTH.length;i++){
+      if (f<=DEPTH[i][1]){
+        const a=DEPTH[i-1], b=DEPTH[i];
+        return lerp(a[0],b[0],(f-a[1])/(b[1]-a[1]));
+      }
+    }
+    return DEPTH[DEPTH.length-1][0];
+  }
+  function d2f(mm){
+    if (mm<=0) return 0;
+    for (let i=1;i<DEPTH.length;i++){
+      if (mm<=DEPTH[i][0]){
+        const a=DEPTH[i-1], b=DEPTH[i];
+        return lerp(a[1],b[1],(mm-a[0])/(b[0]-a[0]));
+      }
+    }
+    return 1;
+  }
+
+  /* press is how hard the probe is held against the skin, and it governs how
+     much heat crosses into the tissue. wobble is an unsteady hand. Nothing
+     here burns: the probe gives up its heat and the tissue carries it away. */
+  /* reach is how far the front travels, as a fraction of the block. Bone
+     begins at 0.66, so only the two firmer settings get there — a light or an
+     unsteady touch does not put enough in to carry that deep. */
+  const GRADES = [
+    { sa:'light touch', press:0.16, wobble:0, couple:0.16, reach:0.24, force:'barely touching' },
+    { sa:'unsteady',    press:0.52, wobble:1, couple:0.34, reach:0.46, force:'unsteady' },
+    { sa:'steady',      press:0.62, wobble:0, couple:0.85, reach:1.00, force:'firm and steady' },
+    { sa:'firm',        press:1.00, wobble:0, couple:1.00, reach:1.10, force:'pressed hard' },
+  ];
+  let gi = 2;
+
+  // declared here, not with the controls: the render loop reads them
+  const els={ name:document.getElementById('g-name'), force:document.getElementById('g-force') };
+
+  const cv = document.getElementById('c');
+  const ctx = cv.getContext('2d');
+  const tissue = document.createElement('canvas');
+  const tctx = tissue.getContext('2d');
+
+  const NX = 80, NY = 40;         // heat grid, declared here because resize() uses it
+  const SUBSTEPS = 12;            // per frame, so conduction covers real ground
+  const OVER = 76;                // overscan: the pulse lift plus the deepest indent
+  let MAX_INDENT = 0;
+  let W=0,H=0,dpr=1, SURF=0, BLOCK=0;
+  let MOTES=[];
+  let HEAT_CV=null, HEAT_CTX=null, HEAT_IMG=null;
+  function resize(){
+    dpr = clamp(window.devicePixelRatio||1,1,2);
+    const r = cv.getBoundingClientRect();
+    W = Math.max(1,Math.round(r.width)); H = Math.max(1,Math.round(r.height));
+    cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    tissue.width=cv.width; tissue.height=Math.round((H+OVER)*dpr);
+    tctx.setTransform(dpr,0,0,dpr,0,0);
+    SURF = Math.round(H*0.30);
+    MAX_INDENT = H*0.052;         // deep enough that fat and muscle visibly bend
+    if (!HEAT_CV){
+      HEAT_CV=document.createElement('canvas');
+      HEAT_CV.width=NX; HEAT_CV.height=NY;
+      HEAT_CTX=HEAT_CV.getContext('2d');
+      HEAT_IMG=HEAT_CTX && HEAT_CTX.createImageData(NX,NY);
+    }
+    buildHeatField();
+    BLOCK = H - SURF;
+    paintTissue();
+  }
+  const yAt = mm => SURF + d2f(mm)*BLOCK;
+
+  /* ---- the expensive part, drawn once ---- */
+  function paintTissue(){
+    const g = tctx;
+    const rng = mulberry(20250808);
+    g.clearRect(0,0,W,H);
+    const yEpi=yAt(0.10), yDer=yAt(2.5), yFat=yAt(9.0);
+
+    // dermis
+    g.fillStyle='#C48470'; g.fillRect(0,yEpi,W,yDer-yEpi);
+    // collagen, coarser with depth
+    for (let i=0;i<Math.round(W*0.45);i++){
+      const y0=lerp(yEpi+5,yDer-4,rng());
+      const x0=rng()*W-60, ln=60+rng()*220, amp=1.5+rng()*3.5;
+      const deep=(y0-yEpi)/(yDer-yEpi);
+      g.strokeStyle='rgba(224,172,152,'+(0.16+0.24*deep).toFixed(2)+')';
+      g.lineWidth=1+deep*1.6;
+      g.beginPath();
+      for (let t=0;t<ln;t+=9){
+        const x=x0+t, y=y0+Math.sin(t*0.05+i)*amp;
+        if (t===0) g.moveTo(x,y); else g.lineTo(x,y);
+      }
+      g.stroke();
+    }
+    // papillary ridges under the epidermis
+    g.strokeStyle='rgba(216,158,140,0.55)'; g.lineWidth=4;
+    for (let x=0;x<W;x+=7){
+      const h=6+4*Math.sin(x*0.06)+rng()*3-1.5;
+      g.beginPath(); g.moveTo(x,yEpi); g.lineTo(x,yEpi+h); g.stroke();
+    }
+    // follicles, leaning
+    for (let i=0;i<Math.max(4,Math.round(W/260));i++){
+      const x=40+rng()*(W-80);
+      const ye=yEpi+(yDer-yEpi)*(0.35+rng()*0.35);
+      const lean=(rng()*2-1)*34;
+      g.strokeStyle='rgba(146,104,84,0.6)'; g.lineWidth=3;
+      g.beginPath(); g.moveTo(x,yEpi-10); g.lineTo(x+lean,ye); g.stroke();
+      g.fillStyle='rgba(160,112,92,0.7)';
+      g.beginPath(); g.ellipse(x+lean,ye+1,7,7,0,0,PI*2); g.fill();
+    }
+    // interstitial specks: slow drift through the dermis and fat, so no part of
+    // the frame is ever completely still
+    MOTES = [];
+    const yFat2 = yAt(9.0);
+    for (let i=0;i<Math.round(W*0.17);i++)
+      MOTES.push({ x:rng()*W, y:lerp(yEpi+8, yFat2, rng()),
+                   ph:rng()*6.28, sp:0.25+rng()*0.7, r:0.7+rng()*1.5,
+                   a:0.10+rng()*0.22 });
+    // epidermis and keratin
+    g.fillStyle='#E8C4A8'; g.fillRect(0,SURF,W,yEpi-SURF);
+    g.fillStyle='#F4DCC4'; g.fillRect(0,SURF,W,Math.max(3,(yEpi-SURF)*0.26));
+    g.strokeStyle='rgba(252,234,214,0.9)'; g.lineWidth=3;
+    for (let x=0;x<W;x+=3){
+      const j=Math.sin(x*0.11)*1.6+rng()*1.6-0.8;
+      g.beginPath(); g.moveTo(x,SURF+j); g.lineTo(x,SURF+3+j); g.stroke();
+    }
+    // fat lobules
+    g.fillStyle='#CEA860'; g.fillRect(0,yDer,W,yFat-yDer);
+    for (let i=0;i<Math.round(W*0.12);i++){
+      const x=rng()*(W+40)-20, y=lerp(yDer+8,yFat-8,rng()), r=14+rng()*20;
+      g.fillStyle='rgba(226,194,122,0.8)';
+      g.strokeStyle='rgba(176,138,74,0.85)'; g.lineWidth=2;
+      g.beginPath(); g.ellipse(x,y,r,r*0.72,0,0,PI*2); g.fill(); g.stroke();
+    }
+    // muscle fibres
+    const yBone = yAt(22.0);
+    g.fillStyle='#963E3A'; g.fillRect(0,yFat,W,yBone-yFat);
+    for (let i=0;i<Math.round(W*0.07);i++){
+      const y=lerp(yFat+4,yBone,rng());
+      g.strokeStyle='rgba(184,86,78,0.5)'; g.lineWidth=2+rng()*3;
+      g.beginPath(); g.moveTo(0,y); g.lineTo(W,y+rng()*10-5); g.stroke();
+    }
+    // bone: a dense cortical shell over spongy trabecular interior
+    g.fillStyle='#E6DCC6'; g.fillRect(0,yBone,W,H+OVER-yBone);
+    const cort = Math.max(8, (H-yBone)*0.13);
+    g.fillStyle='#F2EBDA'; g.fillRect(0,yBone,W,cort);
+    g.strokeStyle='rgba(122,108,86,0.5)'; g.lineWidth=2;
+    g.beginPath(); g.moveTo(0,yBone); g.lineTo(W,yBone); g.stroke();
+    // trabeculae: a mesh of struts, which is what makes it read as bone
+    g.strokeStyle='rgba(168,152,120,0.62)';
+    for (let i=0;i<Math.round(W*0.5);i++){
+      const x=rng()*W, y=lerp(yBone+cort+4, H+OVER, rng());
+      const a=rng()*PI, L=10+rng()*26;
+      g.lineWidth=1+rng()*1.8;
+      g.beginPath();
+      g.moveTo(x-Math.cos(a)*L/2, y-Math.sin(a)*L/2);
+      g.lineTo(x+Math.cos(a)*L/2, y+Math.sin(a)*L/2);
+      g.stroke();
+    }
+    // marrow spaces
+    for (let i=0;i<Math.round(W*0.05);i++){
+      const x=rng()*W, y=lerp(yBone+cort+8, H+OVER, rng()), r=4+rng()*9;
+      g.fillStyle='rgba(206,180,146,0.5)';
+      g.beginPath(); g.ellipse(x,y,r,r*0.8,0,0,PI*2); g.fill();
+    }
+    // above the skin
+    const sky=g.createLinearGradient(0,0,0,SURF);
+    sky.addColorStop(0,'#0A0806'); sky.addColorStop(1,'#171009');
+    g.fillStyle=sky; g.fillRect(0,0,W,SURF);
+  }
+
+  /* ---- the thermal palette ----
+     A single hue cannot show gradation, so this runs the whole incandescent
+     range: dark red where the tissue is barely warm, through red, orange and
+     amber, to white at the contact. Warm colours only — a cool end would tint
+     the tissue blue, which is not what heat looks like and loses the real
+     colour of the flesh underneath. Built once into a lookup table. */
+  const SPECTRUM = [
+    [0.00,  48,  10,   4],   // barely warm: a dark red, almost nothing
+    [0.16, 128,  24,   8],
+    [0.34, 198,  50,  12],   // red
+    [0.52, 240, 108,  20],   // orange
+    [0.70, 252, 172,  44],   // amber
+    [0.86, 254, 222, 118],   // yellow
+    [1.00, 255, 248, 228]    // white, at the contact
+  ];
+  const LUT = new Uint8Array(256*3);
+  (function buildLUT(){
+    for (let i=0;i<256;i++){
+      const t = i/255;
+      let k = 1;
+      while (k < SPECTRUM.length-1 && t > SPECTRUM[k][0]) k++;
+      const a = SPECTRUM[k-1], b = SPECTRUM[k];
+      const u = (t - a[0]) / (b[0] - a[0] || 1);
+      LUT[i*3]   = Math.round(lerp(a[1], b[1], u));
+      LUT[i*3+1] = Math.round(lerp(a[2], b[2], u));
+      LUT[i*3+2] = Math.round(lerp(a[3], b[3], u));
+    }
+  })();
+
+  /* ---- heat ----
+     A real diffusion grid rather than a painted glow. Each cell takes its
+     diffusivity from the layer it sits in, so fat genuinely holds the heat up
+     and bone takes it slowly. Blood carries heat away, and because perfusion
+     rises and falls with the pulse, so does the cooling.
+
+     Explicit stepping, so the update is clamped to the stability limit — past
+     0.25 for the diffusion number it oscillates and blows up. */
+  let Tf = new Float32Array(NX*NY);      // temperature above ambient, 0..1
+  let Tb = new Float32Array(NX*NY);
+  let ALPHA = new Float32Array(NX*NY);   // diffusivity per cell
+  let PERF = new Float32Array(NX*NY);    // how well blood clears heat here
+  let rodT = 0;                          // the probe's own temperature
+
+  function buildHeatField(){
+    for (let j=0;j<NY;j++){
+      const f = j/(NY-1);
+      const mm = mmAtFrac(f);
+      const L = layerAt(mm);
+      // blood clears heat best in the dermis and muscle, poorly in fat and bone
+      /* Perfusion is scaled well down. At life-size rates the blood clears
+         heat faster than it can conduct and nothing below the dermis ever
+         warms — true of a real momentary touch, but it shows nothing. The
+         relative values between layers are kept. */
+      const p = (L.name==='dermis' ? 1.0 : L.name==='muscle' ? 0.75
+              : L.name==='epidermis' ? 0.25 : L.name==='fat' ? 0.18 : 0.10) * 0.04;
+      for (let i=0;i<NX;i++){
+        ALPHA[j*NX+i] = L.a;
+        PERF[j*NX+i]  = p;
+      }
+    }
+    Tf.fill(0); Tb.fill(0);
+    rodT = 1;                       // it comes off the coals already hot
+  }
+
+  function stepHeat(dtFull, contactX, contactW, inject, pulse){
+    for (let s=0;s<SUBSTEPS;s++) stepHeatOnce(dtFull/SUBSTEPS, contactX, contactW, inject, pulse);
+  }
+  function stepHeatOnce(dt, contactX, contactW, inject, pulse){
+    // clamped for stability: the diffusion number must stay under a quarter
+    const D = 0.22;
+    for (let j=0;j<NY;j++){
+      for (let i=0;i<NX;i++){
+        const k = j*NX+i;
+        const c = Tf[k];
+        const l = Tf[j*NX + (i>0?i-1:i)];
+        const r = Tf[j*NX + (i<NX-1?i+1:i)];
+        const u = Tf[(j>0?j-1:j)*NX + i];
+        const d = Tf[(j<NY-1?j+1:j)*NX + i];
+        const lap = (l+r+u+d) - 4*c;
+        // blood removes heat, and does it harder on each beat
+        /* Cooling rate set so the depth reached actually separates the
+           settings: a light touch stays in the dermis, an unsteady one gets
+           into fat, and only the two firm settings carry through to bone. */
+        const cool = PERF[k] * c * (0.55 + pulse*0.75) * dt * 2.0;
+        Tb[k] = c + ALPHA[k]*D*lap - cool;
+      }
+    }
+    // the probe hands its heat to the surface it touches
+    if (inject > 0){
+      const i0 = Math.max(0, Math.floor((contactX-contactW*0.5)*NX));
+      const i1 = Math.min(NX-1, Math.ceil((contactX+contactW*0.5)*NX));
+      for (let i=i0;i<=i1;i++){
+        const u = contactW>0 ? ((i/NX)-contactX)/(contactW*0.5) : 0;
+        const w = Math.max(0, 1-u*u);
+        for (let j=0;j<3;j++){
+          const k=j*NX+i;
+          const give = inject * w * (1 - j*0.28) * dt * 3.2;
+          const room = Math.max(0, rodT - Tb[k]);
+          const moved = Math.min(room*0.5, give);
+          Tb[k] += moved;
+          rodT -= moved * 0.004;          // and cools by giving it up
+        }
+      }
+    }
+    rodT = Math.max(0, rodT - dt*0.03);   // and to the air besides
+    const t = Tf; Tf = Tb; Tb = t;
+  }
+
+
+  /* ---- indentation ----
+     Pressing the probe in dents the surface. Rather than draw a fake dimple
+     over a flat blit, the tissue is redrawn in narrow vertical strips near the
+     contact, each shifted down by the local depth — so the collagen, follicles
+     and layers all bend into the dip with it. */
+  function indentAt(dx, R, press, wob, time){
+    if (Math.abs(dx) > R) return 0;
+    let f = 0.5*(1 + Math.cos((dx/R)*PI));
+    if (wob){
+      // an unsteady hand: the profile is lumpy and drifts
+      f *= 0.55 + 0.45*Math.abs(Math.sin(dx*0.035 + time*0.0013))
+                * Math.abs(Math.cos(dx*0.019 - time*0.0009));
+    }
+    return press * MAX_INDENT * f;
+  }
+
+  /* ---- the wave ----
+     Contact sends a front down through the tissue. It is released when the
+     probe meets the skin and travels until it reaches the bone, slowing as it
+     crosses fat because fat carries it poorly, exactly as the heat does. */
+  let WAVES = [], wasDown = false, lastWave = -1e9;
+  const WAVE_SPEED = 0.62;                 // block-fractions per second
+  function emitWave(time){ if (WAVES.length < 4) WAVES.push({ t0:time }); }
+  function stepWaves(time){
+    for (let i=WAVES.length-1;i>=0;i--)
+      if ((time - WAVES[i].t0)/1000 * WAVE_SPEED > 1.45) WAVES.splice(i,1);
+  }
+  function drawWaves(time, cx, surfC, lift, reach){
+    if (!WAVES.length) return;
+    const depthPx = (H + OVER) - SURF;
+    const stop = reach;                       // how far this setting carries
+    for (const w of WAVES){
+      const age = (time - w.t0)/1000;
+      const f = Math.min(age * WAVE_SPEED, stop);
+      if (f <= 0) continue;
+      const r = f * depthPx * 1.18;
+      // fades as it goes, and fades out entirely once it has run its distance
+      const spent = clamp01((age*WAVE_SPEED) / stop);
+      const fade = Math.pow(1 - spent, 1.1) * (0.55 + 0.45*clamp01(1 - f/1.4));
+      if (fade < 0.02) continue;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, SURF - lift, W, H + OVER - SURF);
+      ctx.clip();
+      // broad bands rather than thin rings
+      const bands = [[0, 30, 0.30],[26, 20, 0.18],[52, 13, 0.10]];
+      for (const [off, wide, alpha] of bands){
+        const rr = r - off;
+        if (rr <= 4) continue;
+        ctx.beginPath();
+        ctx.arc(cx, surfC, rr, 0, PI, false);
+        ctx.strokeStyle = 'rgba(255,196,120,' + (fade*alpha).toFixed(3) + ')';
+        ctx.lineWidth = wide;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  /* ---- the pulse ----
+     One heartbeat drives most of the motion: the tissue lifts a little on each
+     beat, vessels widen, and the cells surge. A sharp rise and a slow decay,
+     which is roughly the shape of an arterial pulse. */
+  const BPM = 64, BEAT = 60000/BPM;
+  function pulseAt(time){
+    const u = (time % BEAT) / BEAT;
+    const rise = smoothstep(0, 0.12, u);
+    const fall = 1 - smoothstep(0.12, 0.62, u);
+    const dicrotic = 0.18*Math.exp(-Math.pow((u-0.42)/0.06,2));   // the second, smaller bump
+    return clamp01(rise*fall + dicrotic);
+  }
+
+  /* ---- the contact cycle ---- */
+  const PERIOD = 11000;          // ms: long enough to watch the heat travel
+  function cycle(time){
+    const u = (time % PERIOD)/PERIOD;
+    // approach, hold, lift, pause
+    if (u < 0.14) return { lift: 1-smoothstep(0,1,u/0.14), contact: 0 };
+    if (u < 0.72) return { lift: 0, contact: smoothstep(0,1,(u-0.14)/0.16) };
+    if (u < 0.84) return { lift: smoothstep(0,1,(u-0.72)/0.12), contact: 1 };
+    return { lift: 1, contact: 1 };
+  }
+  // reset the cells at the top of each cycle, so the sequence can repeat
+  function draw(time, dt, motion){
+    const pulse = motion ? pulseAt(time) : 0.35;
+    ctx.clearRect(0,0,W,H);
+    // the block lifts a little on each beat. The texture is drawn with a few
+    // pixels of overscan so shifting it never exposes an edge.
+    const lift = pulse * 3.0;
+    /* Bone does not move with the pulse and does not bend under the probe, so
+       it is blitted separately and never offset. Only the soft tissue above it
+       lifts and compresses. */
+    const yBone = yAt(22.0);
+    const sBone = Math.round(yBone * dpr);
+    ctx.drawImage(tissue, 0, 0, tissue.width, sBone,
+                  0, -lift, W, yBone);
+    ctx.drawImage(tissue, 0, sBone, tissue.width, tissue.height - sBone,
+                  0, yBone, W, (H + OVER) - yBone);
+
+    const G = GRADES[gi];
+    const ph = motion ? cycle(time) : { lift:0, contact:1 };
+    const cx = W*0.5;
+    // a harder press spreads the contact, which is why it delivers more heat
+    const half = Math.max(34, W*(0.055 + G.press*0.055));
+    const grown = ph.contact;
+
+    /* step the heat before anything is drawn. The probe is reheated between
+       touches, as it would be returned to the coals. */
+    if (motion){
+      // a front on first contact, then one every second or so while held
+      if (ph.lift < 0.06){
+        if (!wasDown || time - lastWave > 1100){ emitWave(time); lastWave = time; }
+        wasDown = true;
+      } else wasDown = false;
+      stepWaves(time);
+      if (ph.lift > 0.85) rodT = Math.min(1, rodT + dt*0.9);   // back to the coals
+      else if (ph.lift < 0.05) rodT = Math.max(rodT, 0.55);   // still hot in contact
+      const inContact = (1 - ph.lift) * G.couple;
+      stepHeat(dt, 0.5, Math.max(0.04, (half*1.2)/W), inContact, pulse);
+    }
+
+    // the dent: strips of the tissue redrawn, each shifted by the local depth
+    const press = G.press * (1 - ph.lift);
+    const RIND = half * 2.10;     // and wide enough to carry across the layers
+    if (press > 0.004){
+      const step = 5;
+      const x0 = Math.max(0, cx - RIND), x1 = Math.min(W, cx + RIND);
+      for (let x = x0; x < x1; x += step){
+        const dip = indentAt(x + step/2 - cx, RIND, press, G.wobble, time);
+        if (dip < 0.15) continue;
+        /* Source is the soft tissue only, and the destination keeps its lower
+           edge on the bone while the upper edge is pushed down. The band is
+           squashed rather than shifted, which is what pressing on flesh over
+           bone actually does. */
+        const dh = (yBone - lift) - (-lift + dip);
+        if (dh <= 1) continue;
+        ctx.drawImage(tissue,
+          Math.round(x*dpr), 0, Math.round(step*dpr), sBone,
+          x, -lift + dip, step + 0.6, dh);
+      }
+    }
+    // where the surface now sits at the centre of the dent
+    const dentC = indentAt(0, RIND, press, G.wobble, time);
+    const surfC = SURF - lift + dentC;
+
+    // interstitial specks, drifting
+    for (let i=0;i<MOTES.length;i++){
+      const m = MOTES[i];
+      if (motion){
+        m.x += Math.sin(time*0.00035*m.sp + m.ph) * 9 * dt;
+        m.y += Math.cos(time*0.00028*m.sp + m.ph*1.7) * 5 * dt;
+        if (m.x < -6) m.x = W+6; else if (m.x > W+6) m.x = -6;
+      }
+      ctx.fillStyle = 'rgba(255,236,214,' + m.a.toFixed(2) + ')';
+      ctx.fillRect(m.x, m.y-lift, m.r*1.7, m.r*1.7);
+    }
+
+
+    drawWaves(time, cx, surfC, lift, G.reach);
+
+    // heat, drawn from the grid: a warm field spreading down through the
+    // layers. Nothing chars — the tissue is warmed and carries the heat away.
+    if (HEAT_IMG){
+      const px = HEAT_IMG.data;
+      for (let j2=0;j2<NY;j2++){
+        for (let i2=0;i2<NX;i2++){
+          const t = clamp01(Tf[j2*NX+i2]);
+          const o = (j2*NX+i2)*4;
+          const li = (t*255)|0;
+          px[o]   = LUT[li*3];
+          px[o+1] = LUT[li*3+1];
+          px[o+2] = LUT[li*3+2];
+          // faint at the leading edge so the tissue still reads through it,
+          // opaque only where it is genuinely hot
+          px[o+3] = Math.round(255 * Math.pow(t, 0.85));
+        }
+      }
+      HEAT_CTX.putImageData(HEAT_IMG,0,0);
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      // added, not painted over: the tissue keeps its own colour and the heat
+      // glows on top of it
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.drawImage(HEAT_CV, 0,0,NX,NY, 0, SURF-lift, W, H+OVER-SURF);
+      ctx.restore();
+    }
+
+    // the rod: down to contact, then away
+    const rw = Math.max(14, W*0.030);
+    const tipY = surfC + 2 - ph.lift*(H*0.30);
+    /* The probe's colour is its temperature: red hot when it comes off the
+       coals, through orange and yellow as it gives the heat up, back to plain
+       gold once it has. Never hot enough here to char what it touches. */
+    const ht = clamp01(rodT);
+    const mixc = (a,b,t)=>[Math.round(lerp(a[0],b[0],t)),Math.round(lerp(a[1],b[1],t)),
+                           Math.round(lerp(a[2],b[2],t))];
+    /* The probe follows the incandescent end of the same scale: dull gold when
+       cold, then deep red, orange, yellow and near-white at its hottest. */
+    const ROD = [[0.00,182,142,58],[0.22,196,120,52],[0.45,232,84,38],
+                 [0.66,250,140,34],[0.84,246,206,74],[1.00,255,246,222]];
+    let core = [ROD[0][1],ROD[0][2],ROD[0][3]];
+    for (let k=1;k<ROD.length;k++){
+      if (ht <= ROD[k][0]){
+        const a=ROD[k-1], b=ROD[k], u=(ht-a[0])/(b[0]-a[0] || 1);
+        core = mixc([a[1],a[2],a[3]],[b[1],b[2],b[3]],u);
+        break;
+      }
+      core = [ROD[k][1],ROD[k][2],ROD[k][3]];
+    }
+    const edge = mixc([110,84,32], core, 0.45);
+    const rg = ctx.createLinearGradient(cx-rw/2,0,cx+rw/2,0);
+    rg.addColorStop(0,'rgb('+edge.join(',')+')');
+    rg.addColorStop(0.42,'rgb('+core.join(',')+')');
+    rg.addColorStop(0.6,'rgb('+mixc(core,[255,238,200],0.5).join(',')+')');
+    rg.addColorStop(1,'rgb('+edge.join(',')+')');
+    ctx.fillStyle=rg;
+    ctx.fillRect(cx-rw/2, -10, rw, tipY-rw*0.42+10);
+    ctx.beginPath(); ctx.ellipse(cx, tipY-rw*0.42, rw/2, rw*0.46, 0,0,PI*2);
+    ctx.fillStyle='rgb('+mixc(core,[255,242,214],0.55).join(',')+')'; ctx.fill();
+
+    // convection above the hot tip: bands of warm air rising and wavering
+    if (motion){
+      const heatUp = 1 - ph.lift;
+      if (heatUp > 0.05){
+        ctx.save();
+        for (let i=0;i<7;i++){
+          const t = ((time*0.00016) + i/7) % 1;
+          const y = tipY - t*H*0.26;
+          const wob = Math.sin(time*0.0022 + i*1.7)*10;
+          const a = (1-t)*0.10*heatUp;
+          if (a < 0.004) continue;
+          ctx.strokeStyle = 'rgba(255,190,120,'+a.toFixed(3)+')';
+          ctx.lineWidth = 2 + t*7;
+          ctx.beginPath();
+          for (let k=-3;k<=3;k++){
+            const x = cx + k*13 + Math.sin(time*0.003 + k + i)*6 + wob*0.3;
+            const yy = y + Math.cos(time*0.0026 + k*0.8)*5;
+            if (k===-3) ctx.moveTo(x,yy); else ctx.lineTo(x,yy);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+
+    // heat at the tip, hottest on contact
+    const heat = 0.25 + ht*0.85;
+    const R = Math.max(30, W*0.085)*(0.8+heat*0.45);
+    const gl = ctx.createRadialGradient(cx,tipY,0,cx,tipY,R);
+    gl.addColorStop(0,'rgba('+core[0]+','+core[1]+','+core[2]+','+(0.55*heat).toFixed(3)+')');
+    gl.addColorStop(0.35,'rgba('+core[0]+','+core[1]+','+core[2]+','+(0.20*heat).toFixed(3)+')');
+    gl.addColorStop(1,'rgba('+core[0]+','+core[1]+','+core[2]+',0)');
+    ctx.fillStyle=gl;
+    ctx.beginPath(); ctx.arc(cx,tipY,R,0,PI*2); ctx.fill();
+
+    // depth axis and layer names
+    ctx.font='500 '+clamp(Math.round(H*0.015),10,14)+'px Archivo, sans-serif';
+    ctx.textBaseline='middle';
+    ctx.strokeStyle='rgba(255,255,255,0.28)'; ctx.lineWidth=1.5;
+    ctx.fillStyle='rgba(255,255,255,0.6)'; ctx.textAlign='left';
+    for (const mm of [0,0.1,2.5,9,22,34]){
+      const y=yAt(mm);
+      ctx.beginPath(); ctx.moveTo(22,y); ctx.lineTo(52,y); ctx.stroke();
+      ctx.fillText(mm+' mm', 60, y);
+    }
+    ctx.textAlign='right';
+    ctx.fillStyle='rgba(255,245,230,0.62)';
+    const names=[['epidermis',(SURF+yAt(0.10))/2],['dermis',(yAt(0.10)+yAt(2.5))/2],
+                 ['fat',(yAt(2.5)+yAt(9))/2],['muscle',(yAt(9)+yAt(22))/2],
+                 ['bone',(yAt(22)+H)/2]];
+    // a line at the bone surface, since that is where the front is heading
+    ctx.strokeStyle='rgba(242,235,218,0.34)'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(0,yAt(22)); ctx.lineTo(W,yAt(22)); ctx.stroke();
+    for (const [nm,y] of names) ctx.fillText(nm, W-22, y);
+  }
+
+  /* ---- loop ---- */
+  const reduced = window.matchMedia
+    ? window.matchMedia('(prefers-reduced-motion: reduce)') : {matches:false};
+  let raf=0, running=false, visible=!document.hidden, onscreen=true, needsResize=false;
+  let lastT = 0;
+  function frame(time){
+    raf=0;
+    const dt = lastT ? Math.min(0.05, (time-lastT)/1000) : 0.016;
+    lastT = time;
+    if (needsResize){ needsResize=false; resize(); }
+    draw(time, dt, !reduced.matches);
+    if (running) schedule();
+  }
+  function schedule(){ if(!raf && running) raf=requestAnimationFrame(frame); }
+  function setRunning(n){
+    if (n===running) return;
+    running=n;
+    if (running) schedule(); else if (raf){ cancelAnimationFrame(raf); raf=0; }
+  }
+  const evaluate = ()=>setRunning(visible && onscreen);
+  window.addEventListener('resize', ()=>{ needsResize=true; schedule(); });
+  document.addEventListener('visibilitychange', ()=>{ visible=!document.hidden; evaluate(); });
+  if (window.ResizeObserver) new ResizeObserver(()=>{ needsResize=true; schedule(); }).observe(cv);
+  if (window.IntersectionObserver)
+    new IntersectionObserver(es=>{ onscreen=es.some(e=>e.isIntersecting); evaluate(); })
+      .observe(document.getElementById('stage'));
+
+  resize();
+  evaluate();
+  schedule();
+
+  /* ---- controls ---- */
+  const btns=[].slice.call(document.querySelectorAll('[data-g]'));
+  function paint(){
+    const G=GRADES[gi];
+    els.name.textContent=G.sa;
+    // depth and probe temperature are live, so they update from the loop
+    els.force.textContent=G.force;
+    schedule();
+  }
+  btns.forEach(b=>b.addEventListener('click', ()=>{
+    gi=parseInt(b.dataset.g,10);
+    btns.forEach(x=>x.setAttribute('aria-pressed', String(x===b)));
+    paint();
+  }));
+  paint();
+
+  const items=document.querySelectorAll('.flow');
+  if (!window.IntersectionObserver) items.forEach(el=>el.classList.add('is-in'));
+  else{
+    const io=new IntersectionObserver((es,obs)=>{
+      es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('is-in'); obs.unobserve(e.target); } });
+    },{threshold:0.2, rootMargin:'0px 0px -8% 0px'});
+    items.forEach(el=>io.observe(el));
+  }
+})();
+</script>
+</body>
+</html>
