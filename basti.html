@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Basti — how far it reaches, and what it does there</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,500;1,6..72,300&family=Archivo:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F2EFE7; --bg-0:#120E0C; --bg-1:#0A0807; --accent:#D9A45E;
+    --glass-bg:rgba(18,13,10,.62); --glass-border:rgba(255,255,255,.16);
+    --glass-sheen:rgba(255,255,255,.12);
+    --gutter:clamp(1.25rem,5vw,5rem);
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0}
+  html{scroll-behavior:smooth}
+  body{font-family:"Archivo",system-ui,sans-serif;color:var(--paper);
+    background:var(--bg-1);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+
+  .stage{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;contain:strict}
+  .stage__canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+  main{position:relative;z-index:1}
+  .panel{min-height:100svh;display:flex;flex-direction:column;justify-content:center;
+    align-items:flex-end;padding:14vh var(--gutter)}
+  .panel--hero{align-items:center}
+  .glass{position:relative;width:min(30rem,100%);
+    background:var(--glass-bg);
+    -webkit-backdrop-filter:blur(22px) saturate(1.2);backdrop-filter:blur(22px) saturate(1.2);
+    border:1px solid var(--glass-border);border-radius:22px;
+    padding:clamp(1.4rem,3vw,2.2rem);
+    box-shadow:0 10px 44px rgba(0,0,0,.42), inset 0 1px 0 var(--glass-sheen)}
+  .panel--hero .glass{width:min(38rem,100%)}
+
+  .flow{opacity:0;transform:translate3d(0,40px,0);
+    transition:opacity .8s cubic-bezier(.22,1,.36,1),transform .8s cubic-bezier(.22,1,.36,1)}
+  .flow.is-in{opacity:1;transform:none}
+
+  .eyebrow{font-size:.6875rem;letter-spacing:.2em;text-transform:uppercase;font-weight:500;
+    opacity:.7;margin:0 0 1.1rem}
+  h1{font-family:"Newsreader",Georgia,serif;font-weight:300;
+    font-size:clamp(2.2rem,5.4vw,4rem);line-height:1.02;letter-spacing:-.03em;margin:0}
+  h1 em{font-style:italic;font-weight:500}
+  h2{font-family:"Newsreader",Georgia,serif;font-weight:300;
+    font-size:clamp(1.5rem,3.2vw,2.3rem);line-height:1.1;margin:0 0 1rem}
+  h2 .sa{display:block;font-size:.4em;letter-spacing:.16em;text-transform:uppercase;
+    font-family:"Archivo",sans-serif;font-weight:500;opacity:.66;margin-bottom:.7rem;color:var(--accent)}
+  p{margin:0;line-height:1.75;font-size:1rem;opacity:.9}
+  p + p{margin-top:.9rem}
+  .lede{font-size:1.1rem;margin-top:1.6rem}
+  strong{font-weight:500;color:var(--accent)}
+  .sa{font-style:italic;opacity:.78}
+  .warn{font-size:.88rem;opacity:.92;border-left:2px solid var(--accent);
+    padding-left:.9rem;margin-top:1.3rem}
+  ul{margin:1rem 0 0;padding-left:1rem}
+  li{line-height:1.65;font-size:.95rem;opacity:.88;margin-bottom:.4rem}
+  table{margin:1.2rem 0 0;width:100%;border-collapse:collapse;font-size:.9rem}
+  th{text-align:left;font-weight:500;font-size:.6875rem;letter-spacing:.14em;
+    text-transform:uppercase;opacity:.6;padding:0 0 .5rem;border-bottom:1px solid var(--glass-border)}
+  td{padding:.5rem .5rem .5rem 0;border-bottom:1px solid rgba(255,255,255,.07);vertical-align:top}
+
+  .hud{position:fixed;left:1rem;bottom:1rem;z-index:2;pointer-events:auto;
+    padding:.7rem .8rem;border-radius:16px;background:rgba(0,0,0,.55);
+    backdrop-filter:blur(10px);font-size:.6875rem;letter-spacing:.08em;
+    text-transform:uppercase;font-variant-numeric:tabular-nums;min-width:13rem}
+  .hud__row{display:flex;gap:.28rem}
+  .hud__row button{flex:1;font:inherit;font-size:.5625rem;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--paper);background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.16);border-radius:8px;padding:.42rem .2rem;cursor:pointer}
+  .hud__row button:hover{background:rgba(255,255,255,.16)}
+  .hud__row button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#17100A}
+  .hud__read{margin-top:.65rem;padding-top:.65rem;border-top:1px solid rgba(255,255,255,.16)}
+  .hud__read div{display:flex;justify-content:space-between;gap:.8rem;margin-bottom:.22rem}
+  .hud__read b{font-weight:500;color:var(--accent);text-transform:none;letter-spacing:.02em}
+  .hud__phase{margin-top:.45rem;font-size:.5625rem;padding:.3rem .5rem;border-radius:6px;
+    text-align:center;background:rgba(255,255,255,.10)}
+
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}
+    .flow{opacity:1;transform:none;transition:none}}
+  @media (max-width:760px){.panel{align-items:stretch}.glass{width:100%}
+    .hud{left:.7rem;bottom:.7rem;min-width:11.5rem}}
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage" aria-hidden="true">
+  <canvas class="stage__canvas" id="c"></canvas>
+</div>
+
+<main>
+  <section class="panel panel--hero">
+    <div class="glass flow">
+      <p class="eyebrow">Basti · the colon route</p>
+      <h1>Half of all<br>treatment, given<br>from <em>below</em>.</h1>
+      <p class="lede">Basti is medicine introduced through the rectum. Caraka gives it extraordinary standing — he calls it approaching half of all treatment, and for vāta disorders the foremost measure there is.</p>
+      <p>The reason is anatomical. The colon is held to be vāta's principal seat, so treating there is treating the disorder at its source rather than where the symptom appears. Use the control to change the type, and watch how far each one gets.</p>
+      <p class="warn">A description of a traditional procedure. Not instructions. Basti is administered by trained practitioners, with a long list of people it is not suitable for.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="glass flow">
+      <h2><span class="sa">Three types</span>Reach is the difference</h2>
+      <p>The classical types differ in what they carry and how much, and that decides how far up they get and what happens next.</p>
+      <ul>
+        <li><strong>Mātrā basti</strong> — a small measure of oil. Stays low, is retained, and needs no elaborate preparation, which is why the texts treat it as the one that can be given most freely.</li>
+        <li><strong>Anuvāsana basti</strong> — an oil enema, larger. Reaches the descending colon and is retained for hours. Unctuous and nourishing: it is given for dryness.</li>
+        <li><strong>Nirūha basti</strong> — a decoction enema, much larger. Reaches across the transverse colon and is <em>expelled</em>, carrying waste with it. This is the cleansing one.</li>
+      </ul>
+      <p style="margin-top:1rem">In practice the two larger types alternate. The classical courses — <span class="sa">karma</span>, <span class="sa">kāla</span> and <span class="sa">yoga basti</span> — are schedules of thirty, sixteen and eight, alternating decoction and oil, never one alone.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="glass flow">
+      <h2><span class="sa">Nirūha</span>What is in it</h2>
+      <p>A decoction basti is not one substance. It is assembled in a fixed order, and the order is part of the method:</p>
+      <table>
+        <thead><tr><th>Ingredient</th><th>Part</th></tr></thead>
+        <tbody>
+          <tr><td><span class="sa">makṣika</span> — honey</td><td>emulsifies, and goes in first</td></tr>
+          <tr><td><span class="sa">saindhava</span> — rock salt</td><td>dissolved into it</td></tr>
+          <tr><td><span class="sa">sneha</span> — oil or ghee</td><td>added and beaten in</td></tr>
+          <tr><td><span class="sa">kalka</span> — herb paste</td><td>the active material</td></tr>
+          <tr><td><span class="sa">kvātha</span> — decoction</td><td>the bulk, added last</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:1.2rem">Beaten together they form an emulsion that holds rather than separating. A modern reading of why the order matters is straightforward: honey and salt first gives you something the oil can emulsify into.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="glass flow">
+      <h2><span class="sa">The wall</span>Why the colon at all</h2>
+      <p>Watch the flecks crossing out of the lumen. The colon's lining is thin, highly vascular, and its whole business is absorption — normally of water and salts, but it will take up other things given to it.</p>
+      <p>Blood leaving the colon partly bypasses the usual first pass through the liver, which is a real difference from swallowing something. That is the modern account of why this route can act differently from the same substance taken by mouth.</p>
+      <p>Ayurveda's own account is different in language and arrives somewhere similar: that the colon is where vāta gathers, and that treating there reaches what has spread from it.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="glass flow">
+      <h2><span class="sa">Retention</span>What happens after it is in</h2>
+      <p>The two oil types are meant to stay. <strong>Nirūha</strong> is not — it is expected back within roughly half an hour to an hour, and its returning is part of the treatment rather than the end of it. The texts describe in detail what a proper return looks like, and treat a basti that does not come back as a complication needing attention.</p>
+      <p>Switch to <strong>nirūha</strong> and watch the cycle through: it fills furthest, is held, and then leaves. The oil types fill less far and simply stay.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="glass flow">
+      <h2><span class="sa">Who it is not for</span>The exclusions</h2>
+      <p>The lists are long, and reading them is part of understanding the method:</p>
+      <ul>
+        <li>immediately after food, and in anyone with undigested residue — <span class="sa">āma</span></li>
+        <li>diarrhoea, bleeding from below, and inflammatory conditions of the bowel</li>
+        <li>severe debility, breathlessness, acute fever</li>
+        <li>the very young and the very old, for the stronger types</li>
+        <li>pregnancy, for the eliminative types</li>
+      </ul>
+      <p style="margin-top:1rem">Modern practice adds obstruction, recent bowel surgery, and severe haemorrhoids or fissures.</p>
+    </div>
+  </section>
+
+  <section class="panel panel--hero">
+    <div class="glass flow">
+      <h2><span class="sa">Where the evidence stands</span>Plainly</h2>
+      <p>Basti is the most used of the five purificatory procedures and there is a reasonable published literature from Ayurvedic institutions, mostly on low back pain, sciatica and osteoarthritis. As with much of this work: small trials, often unblinded, frequently without adequate controls.</p>
+      <p>The mechanisms proposed — local absorption, effects on the gut and its contents, and the colon's own nervous supply — are plausible without being established. Retention enemas are ordinary in conventional medicine too, so the route is not in question. The specific claims made for it are less settled than the enthusiasm around it suggests.</p>
+      <p class="warn">Ayurveda is a traditional system of medicine and the claims here are its own. This is a clinical procedure with real risks — perforation, electrolyte disturbance, infection — carried out by trained practitioners. For anything concerning your own health, speak to a qualified professional.</p>
+    </div>
+  </section>
+</main>
+
+<div class="hud" id="hud">
+  <div class="hud__row" role="group" aria-label="Type of basti">
+    <button type="button" data-t="0" aria-pressed="false">mātrā</button>
+    <button type="button" data-t="1" aria-pressed="false">anuvāsana</button>
+    <button type="button" data-t="2" aria-pressed="true">nirūha</button>
+  </div>
+  <div class="hud__read">
+    <div><span>carries</span><b id="b-what">decoction</b></div>
+    <div><span>reaches</span><b id="b-reach">transverse</b></div>
+    <div><span>after</span><b id="b-after">expelled</b></div>
+    <div class="hud__phase" id="b-phase">administering</div>
+  </div>
+</div>
+
+<script>
+/* ============================================================================
+   Basti: the large intestine, and how far each type of enema reaches.
+
+   The colon is a centre-line with a radius, so the lumen, the wall, the
+   haustra and the filled portion are all derived from one path. Filling is a
+   fraction of arc length from the anus, which is what makes reach comparable
+   between the three types.
+   ========================================================================== */
+(function () {
+  'use strict';
+  const PI = Math.PI;
+  const clamp = (v,a,b)=>v<a?a:v>b?b:v;
+  const clamp01 = v=>clamp(v,0,1);
+  const lerp = (a,b,t)=>a+(b-a)*t;
+  const smoothstep=(e0,e1,x)=>{const t=clamp01((x-e0)/(e1-e0));return t*t*(3-2*t);};
+  function mulberry(seed){
+    return function(){ seed|=0; seed=seed+0x6D2B79F5|0;
+      let t=Math.imul(seed^seed>>>15,1|seed);
+      t=t+Math.imul(t^t>>>7,61|t)^t;
+      return ((t^t>>>14)>>>0)/4294967296; };
+  }
+
+  /* The centre-line, anus first. x is measured from the midline, positive to
+     the viewer's right — so the descending colon, which is on the patient's
+     left, appears on the right, as it would facing them. */
+  const PATH = [
+    [ 0.000,0.930,0.032],[ 0.000,0.878,0.050],[ 0.012,0.832,0.052],
+    [ 0.058,0.796,0.044],[ 0.135,0.790,0.038],[ 0.205,0.755,0.036],
+    [ 0.230,0.706,0.036],[ 0.190,0.668,0.036],[ 0.215,0.628,0.038],
+    [ 0.255,0.585,0.038],[ 0.272,0.505,0.038],[ 0.280,0.420,0.038],
+    [ 0.284,0.335,0.038],[ 0.276,0.268,0.040],[ 0.238,0.222,0.042],
+    [ 0.160,0.208,0.044],[ 0.060,0.232,0.046],[-0.045,0.246,0.046],
+    [-0.145,0.228,0.046],[-0.232,0.206,0.044],[-0.283,0.238,0.044],
+    [-0.300,0.310,0.044],[-0.305,0.400,0.044],[-0.302,0.490,0.046],
+    [-0.292,0.565,0.050],[-0.268,0.625,0.056],[-0.228,0.665,0.058],
+    [-0.186,0.676,0.050]
+  ];
+  const N = 460;
+  const CX = new Float64Array(N), CY = new Float64Array(N), CR = new Float64Array(N);
+  const NXv = new Float64Array(N), NYv = new Float64Array(N);
+  const ARC = new Float64Array(N);
+  (function resample(){
+    const seg=[0];
+    let total=0;
+    for (let i=1;i<PATH.length;i++){
+      total += Math.hypot(PATH[i][0]-PATH[i-1][0], PATH[i][1]-PATH[i-1][1]);
+      seg.push(total);
+    }
+    for (let k=0;k<N;k++){
+      const s = k/(N-1)*total;
+      let i=1; while (i<seg.length-1 && s>seg[i]) i++;
+      const u=(s-seg[i-1])/((seg[i]-seg[i-1])||1);
+      CX[k]=lerp(PATH[i-1][0],PATH[i][0],u);
+      CY[k]=lerp(PATH[i-1][1],PATH[i][1],u);
+      CR[k]=lerp(PATH[i-1][2],PATH[i][2],u);
+      ARC[k]=s/total;
+    }
+    for (let k=0;k<N;k++){
+      const a=Math.max(0,k-1), b=Math.min(N-1,k+1);
+      const dx=CX[b]-CX[a], dy=CY[b]-CY[a];
+      const L=Math.hypot(dx,dy)||1;
+      NXv[k]=-dy/L; NYv[k]=dx/L;
+    }
+  })();
+
+  // haustra: rounded pouches with a pinch between, the colon's signature
+  const HZ = new Float64Array(N);
+  for (let k=0;k<N;k++) HZ[k] = 1 + 0.30*Math.abs(Math.sin(ARC[k]*66)) - 0.10;
+
+  const REGIONS = [
+    [0.00,'rectum'],[0.10,'sigmoid'],[0.26,'descending'],
+    [0.52,'transverse'],[0.74,'ascending'],[0.93,'caecum']
+  ];
+  const regionAt = f => {
+    let n = REGIONS[0][1];
+    for (const [a,name] of REGIONS) if (f >= a) n = name;
+    return n;
+  };
+
+  /* reach is a fraction of the colon's length from the anus. The oil types
+     stay low and are retained; the decoction goes furthest and comes back. */
+  const TYPES = [
+    { sa:'mātrā basti',    what:'oil, a small measure', reach:0.22, retained:true,
+      after:'retained', tint:'#E8C36A' },
+    { sa:'anuvāsana basti',what:'oil',                  reach:0.44, retained:true,
+      after:'retained', tint:'#E2B054' },
+    { sa:'nirūha basti',   what:'decoction',            reach:0.72, retained:false,
+      after:'expelled', tint:'#C98A46' },
+  ];
+  let ti = 2;
+
+  const cv = document.getElementById('c');
+  const ctx = cv.getContext('2d');
+  const shell = document.createElement('canvas');
+  const sctx = shell.getContext('2d');
+  let W=0,H=0,dpr=1,S=1,OX=0,OY=0;
+  let MOTES=[], UPTAKE=[];
+
+  const PX = x => OX + x*S;
+  const PY = y => OY + y*S;
+
+  function resize(){
+    dpr = clamp(window.devicePixelRatio||1,1,2);
+    const r = cv.getBoundingClientRect();
+    W = Math.max(1,Math.round(r.width)); H = Math.max(1,Math.round(r.height));
+    cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    shell.width=cv.width; shell.height=cv.height;
+    sctx.setTransform(dpr,0,0,dpr,0,0);
+    // fit the whole run with margin; it is taller than it is wide
+    S = Math.min(H*0.88, W*0.62);
+    OX = W*0.5; OY = H*0.5 - S*0.5;
+    paintShell();
+    seedMotes();
+  }
+
+  function edge(k, side, scale){
+    const rr = CR[k]*HZ[k]*(scale===undefined?1:scale);
+    return [CX[k] + side*NXv[k]*rr, CY[k] + side*NYv[k]*rr];
+  }
+
+  /* the wall, the taeniae and the haustral notches, drawn once */
+  function paintShell(){
+    const g = sctx;
+    g.clearRect(0,0,W,H);
+    const wall=[], back=[];
+    for (let k=0;k<N;k++){ const p=edge(k, 1); wall.push([PX(p[0]),PY(p[1])]); }
+    for (let k=N-1;k>=0;k--){ const p=edge(k,-1); back.push([PX(p[0]),PY(p[1])]); }
+    g.beginPath();
+    wall.concat(back).forEach((p,i)=> i? g.lineTo(p[0],p[1]) : g.moveTo(p[0],p[1]));
+    g.closePath();
+    g.fillStyle='#BC846C'; g.fill();
+    // a rounded cap on the caecum
+    const last=N-1;
+    g.beginPath();
+    g.arc(PX(CX[last]), PY(CY[last]), CR[last]*HZ[last]*S, 0, PI*2);
+    g.fill();
+    // the lumen
+    const lum=[], lumb=[];
+    for (let k=0;k<N;k++){ const p=edge(k, 1, 0.74); lum.push([PX(p[0]),PY(p[1])]); }
+    for (let k=N-1;k>=0;k--){ const p=edge(k,-1, 0.74); lumb.push([PX(p[0]),PY(p[1])]); }
+    g.beginPath();
+    lum.concat(lumb).forEach((p,i)=> i? g.lineTo(p[0],p[1]) : g.moveTo(p[0],p[1]));
+    g.closePath();
+    g.fillStyle='#603830'; g.fill();
+    g.beginPath();
+    g.arc(PX(CX[last]), PY(CY[last]), CR[last]*HZ[last]*0.74*S, 0, PI*2);
+    g.fill();
+    // notches between the pouches
+    g.strokeStyle='rgba(150,96,78,0.82)'; g.lineWidth=Math.max(1,0.004*S);
+    for (let k=2;k<N-2;k++){
+      if (Math.abs(Math.sin(ARC[k]*66)) > 0.16) continue;
+      const a=edge(k,1,0.95), b=edge(k,-1,0.95);
+      g.beginPath(); g.moveTo(PX(a[0]),PY(a[1])); g.lineTo(PX(b[0]),PY(b[1])); g.stroke();
+    }
+    // taeniae coli
+    g.strokeStyle='rgba(170,114,94,0.6)'; g.lineWidth=Math.max(1,0.005*S);
+    for (const side of [0.44,-0.44]){
+      g.beginPath();
+      for (let k=0;k<N;k++){
+        const p=edge(k, side<0?-1:1, Math.abs(side));
+        if (k===0) g.moveTo(PX(p[0]),PY(p[1])); else g.lineTo(PX(p[0]),PY(p[1]));
+      }
+      g.stroke();
+    }
+  }
+
+  function seedMotes(){
+    const rng = mulberry(4242);
+    MOTES = [];
+    for (let i=0;i<220;i++)
+      MOTES.push({ k:rng()*(N-1), off:(rng()*2-1)*0.55, r:0.0016+rng()*0.0028,
+                   sp:0.4+rng()*0.9, ph:rng()*6.28 });
+    UPTAKE = [];
+  }
+
+  /* ---- the cycle ---- */
+  const PERIOD = 13000;
+  function phaseAt(time, retained){
+    const u = (time % PERIOD)/PERIOD;
+    if (u < 0.20) return { fill: smoothstep(0,1,u/0.20), stage:'administering', u };
+    if (u < 0.72) return { fill: 1, stage:'retained', u };
+    if (!retained) return { fill: 1-smoothstep(0,1,(u-0.72)/0.16), stage:'returning', u };
+    return { fill: 1, stage:'retained', u };
+  }
+
+  function draw(time, dt, motion){
+    ctx.clearRect(0,0,W,H);
+    ctx.drawImage(shell, 0,0, shell.width, shell.height, 0,0, W,H);
+
+    const T = TYPES[ti];
+    const ph = motion ? phaseAt(time, T.retained) : { fill:1, stage:'retained', u:0.4 };
+    const reach = T.reach * ph.fill;
+    const kEnd = Math.max(1, Math.floor(reach*(N-1)));
+
+    // the filled portion of the lumen
+    if (kEnd > 1){
+      const a=[], b=[];
+      for (let k=0;k<=kEnd;k++){ const p=edge(k, 1, 0.74); a.push([PX(p[0]),PY(p[1])]); }
+      for (let k=kEnd;k>=0;k--){ const p=edge(k,-1, 0.74); b.push([PX(p[0]),PY(p[1])]); }
+      ctx.beginPath();
+      a.concat(b).forEach((p,i)=> i? ctx.lineTo(p[0],p[1]) : ctx.moveTo(p[0],p[1]));
+      ctx.closePath();
+      const gr = ctx.createLinearGradient(0, PY(CY[kEnd]), 0, PY(CY[0]));
+      gr.addColorStop(0, T.tint);
+      gr.addColorStop(1, '#B87C3E');
+      ctx.fillStyle = gr; ctx.fill();
+      // a meniscus at the leading edge
+      const m1=edge(kEnd,1,0.74), m2=edge(kEnd,-1,0.74);
+      ctx.beginPath();
+      ctx.moveTo(PX(m1[0]),PY(m1[1])); ctx.lineTo(PX(m2[0]),PY(m2[1]));
+      ctx.strokeStyle='rgba(255,232,180,0.85)';
+      ctx.lineWidth=Math.max(1.4,0.006*S); ctx.stroke();
+    }
+
+    // flecks carried in the fluid, and uptake across the wall
+    for (let i=0;i<MOTES.length;i++){
+      const m = MOTES[i];
+      if (m.k > kEnd) continue;
+      if (motion){
+        m.k += (ph.stage==='administering' ? 26 : ph.stage==='returning' ? -34 : 3) * m.sp * dt;
+        if (m.k < 0) m.k = 0;
+        if (m.k > kEnd) m.k = kEnd;
+      }
+      const k = Math.max(0, Math.min(N-1, Math.round(m.k)));
+      const wob = motion ? Math.sin(time*0.0016*m.sp + m.ph)*0.12 : 0;
+      const rr = CR[k]*HZ[k]*0.74*(m.off+wob);
+      const x = CX[k] + NXv[k]*rr, y = CY[k] + NYv[k]*rr;
+      ctx.fillStyle = 'rgba(255,232,178,0.55)';
+      ctx.beginPath(); ctx.arc(PX(x),PY(y), Math.max(0.6, m.r*S), 0, PI*2); ctx.fill();
+    }
+
+    // absorption: flecks crossing out through the wall while it is held
+    if (motion && ph.stage!=='administering' && UPTAKE.length < 90 && Math.random() < 0.5){
+      const k = Math.floor(Math.random()*kEnd);
+      const side = Math.random()<0.5 ? 1 : -1;
+      UPTAKE.push({ k, side, t:0, sp:0.5+Math.random()*0.7 });
+    }
+    for (let i=UPTAKE.length-1;i>=0;i--){
+      const u = UPTAKE[i];
+      if (motion) u.t += dt*0.42*u.sp;
+      if (u.t >= 1){ UPTAKE.splice(i,1); continue; }
+      const k = u.k;
+      const rr = CR[k]*HZ[k]*(0.74 + u.t*0.95);
+      const x = CX[k] + u.side*NXv[k]*rr, y = CY[k] + u.side*NYv[k]*rr;
+      ctx.fillStyle = 'rgba(255,214,140,'+((1-u.t)*0.7).toFixed(3)+')';
+      ctx.beginPath(); ctx.arc(PX(x),PY(y), Math.max(0.5, 0.0022*S*(1-u.t*0.5)), 0, PI*2); ctx.fill();
+    }
+
+    // how far it got, called out on the tube
+    if (kEnd > 4){
+      const p = edge(kEnd, CX[kEnd] >= 0 ? 1 : -1, 2.1);
+      ctx.font = '500 '+clamp(Math.round(H*0.016),10,15)+'px Archivo, sans-serif';
+      ctx.textBaseline='middle';
+      ctx.textAlign = CX[kEnd] >= 0 ? 'left' : 'right';
+      ctx.fillStyle='rgba(255,224,164,0.92)';
+      ctx.fillText(regionAt(ARC[kEnd]), PX(p[0]) + (CX[kEnd]>=0?8:-8), PY(p[1]));
+    }
+
+    // region names down the side
+    ctx.font='500 '+clamp(Math.round(H*0.013),9,12)+'px Archivo, sans-serif';
+    ctx.fillStyle='rgba(240,226,200,0.42)';
+    for (const [f,name] of REGIONS){
+      const k = Math.min(N-1, Math.round(f*(N-1)));
+      const side = CX[k] >= 0 ? 1 : -1;
+      const p = edge(k, side, 1.9);
+      ctx.textAlign = side>0 ? 'left' : 'right';
+      ctx.fillText(name, PX(p[0]) + side*10, PY(p[1]));
+    }
+    return ph;
+  }
+
+  /* ---- loop ---- */
+  const reduced = window.matchMedia
+    ? window.matchMedia('(prefers-reduced-motion: reduce)') : {matches:false};
+  let raf=0, running=false, visible=!document.hidden, onscreen=true, needsResize=false;
+  let lastT=0, lastStage='';
+  const els={ what:document.getElementById('b-what'), reach:document.getElementById('b-reach'),
+              after:document.getElementById('b-after'), phase:document.getElementById('b-phase') };
+
+  function frame(time){
+    raf=0;
+    const dt = lastT ? Math.min(0.05,(time-lastT)/1000) : 0.016;
+    lastT = time;
+    if (needsResize){ needsResize=false; resize(); }
+    const ph = draw(time, dt, !reduced.matches);
+    if (ph && ph.stage !== lastStage){
+      lastStage = ph.stage;
+      if (els.phase) els.phase.textContent = ph.stage;
+    }
+    if (running) schedule();
+  }
+  function schedule(){ if(!raf && running) raf=requestAnimationFrame(frame); }
+  function setRunning(n){
+    if (n===running) return;
+    running=n;
+    if (running){ lastT=0; schedule(); } else if (raf){ cancelAnimationFrame(raf); raf=0; }
+  }
+  const evaluate = ()=>setRunning(visible && onscreen);
+  window.addEventListener('resize', ()=>{ needsResize=true; schedule(); });
+  document.addEventListener('visibilitychange', ()=>{ visible=!document.hidden; evaluate(); });
+  if (window.ResizeObserver) new ResizeObserver(()=>{ needsResize=true; schedule(); }).observe(cv);
+  if (window.IntersectionObserver)
+    new IntersectionObserver(es=>{ onscreen=es.some(e=>e.isIntersecting); evaluate(); })
+      .observe(document.getElementById('stage'));
+
+  resize();
+  evaluate();
+  schedule();
+
+  /* ---- controls ---- */
+  const btns=[].slice.call(document.querySelectorAll('[data-t]'));
+  function paint(){
+    const T=TYPES[ti];
+    els.what.textContent=T.what;
+    els.reach.textContent=regionAt(T.reach);
+    els.after.textContent=T.after;
+    UPTAKE=[];
+    schedule();
+  }
+  btns.forEach(b=>b.addEventListener('click', ()=>{
+    ti=parseInt(b.dataset.t,10);
+    btns.forEach(x=>x.setAttribute('aria-pressed', String(x===b)));
+    paint();
+  }));
+  paint();
+
+  const items=document.querySelectorAll('.flow');
+  if (!window.IntersectionObserver) items.forEach(el=>el.classList.add('is-in'));
+  else{
+    const io=new IntersectionObserver((es,obs)=>{
+      es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('is-in'); obs.unobserve(e.target); } });
+    },{threshold:0.2, rootMargin:'0px 0px -8% 0px'});
+    items.forEach(el=>io.observe(el));
+  }
+})();
+</script>
+</body>
+</html>

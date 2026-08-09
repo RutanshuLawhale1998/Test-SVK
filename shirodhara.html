@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Shirodhara — a stream held steady on the forehead</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,500;1,6..72,300&family=Archivo:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#E8F2F8; --bg-0:#04080E; --bg-1:#010306; --accent:#E8C070;
+    --glass-bg:rgba(6,16,26,.66); --glass-border:rgba(140,200,235,.20);
+    --glass-sheen:rgba(160,220,255,.14);
+    --gutter:clamp(1.25rem,5vw,5rem);
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0}
+  html{scroll-behavior:smooth}
+  body{font-family:"Archivo",system-ui,sans-serif;color:var(--paper);
+    background:var(--bg-1);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+
+  .stage{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;contain:strict}
+  .stage__canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+  main{position:relative;z-index:1}
+  .panel{min-height:100svh;display:flex;flex-direction:column;justify-content:center;
+    align-items:flex-end;padding:14vh var(--gutter)}
+  .panel--hero{align-items:center}
+  .glass{position:relative;width:min(30rem,100%);
+    background:var(--glass-bg);
+    -webkit-backdrop-filter:blur(22px) saturate(1.2);backdrop-filter:blur(22px) saturate(1.2);
+    border:1px solid var(--glass-border);border-radius:22px;
+    padding:clamp(1.4rem,3vw,2.2rem);
+    box-shadow:0 10px 44px rgba(0,0,0,.6), inset 0 1px 0 var(--glass-sheen)}
+  .panel--hero .glass{width:min(38rem,100%)}
+
+  .flow{opacity:0;transform:translate3d(0,40px,0);
+    transition:opacity .8s cubic-bezier(.22,1,.36,1),transform .8s cubic-bezier(.22,1,.36,1)}
+  .flow.is-in{opacity:1;transform:none}
+
+  .eyebrow{font-size:.6875rem;letter-spacing:.2em;text-transform:uppercase;font-weight:500;
+    opacity:.7;margin:0 0 1.1rem}
+  h1{font-family:"Newsreader",Georgia,serif;font-weight:300;
+    font-size:clamp(2.2rem,5.4vw,4rem);line-height:1.02;letter-spacing:-.03em;margin:0}
+  h1 em{font-style:italic;font-weight:500}
+  h2{font-family:"Newsreader",Georgia,serif;font-weight:300;
+    font-size:clamp(1.5rem,3.2vw,2.3rem);line-height:1.1;margin:0 0 1rem}
+  h2 .sa{display:block;font-size:.4em;letter-spacing:.16em;text-transform:uppercase;
+    font-family:"Archivo",sans-serif;font-weight:500;opacity:.66;margin-bottom:.7rem;color:var(--accent)}
+  p{margin:0;line-height:1.75;font-size:1rem;opacity:.9}
+  p + p{margin-top:.9rem}
+  .lede{font-size:1.1rem;margin-top:1.6rem}
+  strong{font-weight:500;color:var(--accent)}
+  .sa{font-style:italic;opacity:.78}
+  .warn{font-size:.88rem;opacity:.92;border-left:2px solid var(--accent);
+    padding-left:.9rem;margin-top:1.3rem}
+  ul{margin:1rem 0 0;padding-left:1rem}
+  li{line-height:1.65;font-size:.95rem;opacity:.88;margin-bottom:.4rem}
+  table{margin:1.2rem 0 0;width:100%;border-collapse:collapse;font-size:.9rem}
+  th{text-align:left;font-weight:500;font-size:.6875rem;letter-spacing:.14em;
+    text-transform:uppercase;opacity:.6;padding:0 0 .5rem;border-bottom:1px solid var(--glass-border)}
+  td{padding:.5rem .5rem .5rem 0;border-bottom:1px solid rgba(255,255,255,.07);vertical-align:top}
+
+  .hud{position:fixed;left:1rem;bottom:1rem;z-index:2;pointer-events:auto;
+    padding:.7rem .8rem;border-radius:16px;background:rgba(3,10,18,.72);
+    backdrop-filter:blur(10px);font-size:.6875rem;letter-spacing:.08em;
+    text-transform:uppercase;font-variant-numeric:tabular-nums;min-width:13.5rem}
+  .hud__row{display:flex;gap:.26rem;flex-wrap:wrap}
+  .hud__row button{flex:1 1 44%;font:inherit;font-size:.5625rem;letter-spacing:.05em;
+    text-transform:uppercase;color:var(--paper);background:rgba(255,255,255,.08);
+    border:1px solid rgba(140,200,235,.22);border-radius:8px;padding:.42rem .2rem;cursor:pointer}
+  .hud__row button:hover{background:rgba(255,255,255,.16)}
+  .hud__row button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#17110A}
+  .hud__read{margin-top:.65rem;padding-top:.65rem;border-top:1px solid rgba(255,255,255,.16)}
+  .hud__read div{display:flex;justify-content:space-between;gap:.8rem;margin-bottom:.22rem}
+  .hud__read b{font-weight:500;color:var(--accent);text-transform:none;letter-spacing:.02em}
+
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}
+    .flow{opacity:1;transform:none;transition:none}}
+  @media (max-width:760px){.panel{align-items:stretch}.glass{width:100%}
+    .hud{left:.7rem;bottom:.7rem;min-width:11.5rem}}
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage" aria-hidden="true">
+  <canvas class="stage__canvas" id="c"></canvas>
+</div>
+
+<main>
+  <section class="panel panel--hero">
+    <div class="glass flow">
+      <p class="eyebrow">Shirodhāra · head, and stream</p>
+      <h1>An unbroken<br>stream, held for<br><em>an hour</em>.</h1>
+      <p class="lede">The name is the whole description: <span class="sa">shiras</span>, head, and <span class="sa">dhārā</span>, a continuous flow. Warm liquid is poured onto the forehead from a fixed height, moved slowly back and forth across it, and kept unbroken for the length of the session.</p>
+      <p>Not much happens, and that is the point. The interesting thing is the continuity — the same stimulus, the same warmth, the same sound, for thirty to forty-five minutes without a break.</p>
+      <p>Nothing is drawn inside the figure. The liquid is the only thing to follow: down from the vessel, onto the forehead, back over the scalp, through the hole in the table, and into the pot beneath it. Scroll and the view closes in on the forehead, then draws back to take in the whole circuit.</p>
+      <p class="warn">A description of a traditional procedure. Not instructions. Carried out by trained practitioners, and unsuitable for a number of conditions.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="glass flow">
+      <h2><span class="sa">The set-up</span>Every part of it is specified</h2>
+      <ul>
+        <li>The vessel — <span class="sa">dhārā pātra</span> — is a wide shallow brass bowl hung on chains above the forehead, tapering to a small spout. The classical height is <strong>four aṅgula</strong>, four finger-breadths, which is a personal measure rather than a fixed one.</li>
+        <li>What comes out is a <strong>thread</strong>, not a pour — fine enough that the vessel lasts the session. It falls between the brows and is <strong>moved side to side</strong>, never held on one spot.</li>
+        <li>The liquid is warmed and <strong>recirculated</strong>, so its temperature and the flow stay constant throughout.</li>
+        <li>The body lies flat on the table, face up. A hole is cut through the table at the head end: the run-off falls through it into a vessel below, to be strained, rewarmed and returned to the pot above. That recirculation is why one vessel lasts a whole session.</li>
+      </ul>
+      <p style="margin-top:1rem">Shirodhāra is one of four classical ways of applying oil to the head, the group called <span class="sa">mūrdha taila</span>. The others differ in how the oil is held there: massaged in, kept on a pad, or retained in a leather collar around the scalp.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="glass flow">
+      <h2><span class="sa">Four liquids</span>What is poured decides the indication</h2>
+      <p>Change the liquid with the control. The procedure stays the same; what it is for does not.</p>
+      <table>
+        <thead><tr><th>Poured</th><th>Called</th><th>Given for</th></tr></thead>
+        <tbody>
+          <tr><td>oil</td><td><span class="sa">taila dhārā</span></td><td>the standard form — dryness, sleeplessness, unsettledness</td></tr>
+          <tr><td>buttermilk</td><td><span class="sa">takra dhārā</span></td><td>heat conditions and some skin disease; classically psoriasis</td></tr>
+          <tr><td>milk</td><td><span class="sa">kṣīra dhārā</span></td><td>cooling, for burning and irritability</td></tr>
+          <tr><td>decoction</td><td><span class="sa">kaṣāya dhārā</span></td><td>where the herbs themselves are the point</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:1.2rem">Each is a different weight of liquid, so the stream behaves differently: oil runs thick and slow, buttermilk and decoction thinner and faster. Watch the stream when you switch.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="glass flow">
+      <h2><span class="sa">Why the forehead</span>The claim, and what is known</h2>
+      <p>Ayurveda places the site at <span class="sa">sthapani marma</span>, between the brows, and treats the head as the seat of the senses and of <span class="sa">prāṇa</span>. Pouring there is held to settle the mind and to act on vāta in the head.</p>
+      <p>The modern account is different and more modest. A steady, warm, moving pressure on the forehead is a continuous mild stimulus to the trigeminal nerve and the skin, and continuous predictable stimulus of that kind tends to shift the balance of the autonomic nervous system toward the calming side. Small studies report slower heart rate, lower anxiety scores, and changes in EEG toward alpha activity during and after treatment.</p>
+      <p>Those studies are mostly small and often unblinded — a hard thing to blind, given that you know whether oil is being poured on your head. The direction of effect is consistent; the size of it is not established.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="glass flow">
+      <h2><span class="sa">Who it is not for</span>The exclusions</h2>
+      <ul>
+        <li>acute fever, and any state with undigested residue — <span class="sa">āma</span></li>
+        <li>recent head injury, and raised intracranial pressure</li>
+        <li>acute sinus or ear infection, and open scalp lesions</li>
+        <li>immediately after a heavy meal</li>
+        <li>severe debility, and the very frail</li>
+      </ul>
+      <p style="margin-top:1rem">The practical cautions matter as much: the oil is warm and prolonged, so temperature has to be checked and held, and the eyes have to be covered and kept covered.</p>
+    </div>
+  </section>
+
+  <section class="panel panel--hero">
+    <div class="glass flow">
+      <h2><span class="sa">Afterwards</span>What follows the session</h2>
+      <p>The oil is left on for a period, then the head is washed with warm water or a herbal powder. Rest is prescribed after, and cold, wind and exertion are avoided for the remainder of the day. A course runs seven to fourteen days rather than a single session.</p>
+      <p class="warn">Ayurveda is a traditional system of medicine and the claims here are its own. For anything concerning your own health, speak to a qualified professional.</p>
+    </div>
+  </section>
+</main>
+
+<div class="hud" id="hud">
+  <div class="hud__row" role="group" aria-label="Liquid poured">
+    <button type="button" data-l="0" aria-pressed="true">oil</button>
+    <button type="button" data-l="1" aria-pressed="false">buttermilk</button>
+    <button type="button" data-l="2" aria-pressed="false">milk</button>
+    <button type="button" data-l="3" aria-pressed="false">decoction</button>
+  </div>
+  <div class="hud__read">
+    <div><span>called</span><b id="s-name">taila dhārā</b></div>
+    <div><span>for</span><b id="s-for">dryness, sleeplessness</b></div>
+    <div><span>stream</span><b id="s-flow">thick, slow</b></div>
+    <div><span>elapsed</span><b id="s-time">0 min</b></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================================
+   Shirodhara: a supine head, a vessel above, and an unbroken stream that is
+   moved back and forth across the forehead.
+
+   The head is the profile built earlier on canonical facial thirds — crown to
+   chin spans 1.0, brow at 0.00, base of the nose at +0.25 — rotated so the
+   face points up, as it would on someone lying down.
+   ========================================================================== */
+(function () {
+  'use strict';
+  const PI = Math.PI;
+  const clamp = (v,a,b)=>v<a?a:v>b?b:v;
+  const clamp01 = v=>clamp(v,0,1);
+  const lerp = (a,b,t)=>a+(b-a)*t;
+  const smoothstep=(e0,e1,x)=>{const t=clamp01((x-e0)/(e1-e0));return t*t*(3-2*t);};
+  function mulberry(seed){
+    return function(){ seed|=0; seed=seed+0x6D2B79F5|0;
+      let t=Math.imul(seed^seed>>>15,1|seed);
+      t=t+Math.imul(t^t>>>7,61|t)^t;
+      return ((t^t>>>14)>>>0)/4294967296; };
+  }
+
+  const HEAD = [
+    [0.000,-0.500],[0.170,-0.458],[0.280,-0.366],[0.335,-0.230],
+    [0.352,-0.070],[0.322, 0.014],[0.372, 0.126],[0.440, 0.202],
+    [0.348, 0.240],[0.362, 0.288],[0.322, 0.330],[0.342, 0.372],
+    [0.292, 0.420],[0.306, 0.478],[0.246, 0.500],[0.090, 0.474],
+    [-0.070,0.412],[-0.212,0.296],[-0.310,0.120],[-0.380,-0.090],
+    [-0.322,-0.290],[-0.186,-0.432]
+  ];
+  const HAIR = [
+    [0.000,-0.522],[0.190,-0.474],[0.300,-0.372],[0.255,-0.318],
+    [0.100,-0.400],[-0.100,-0.410],[-0.270,-0.324],[-0.372,-0.100],
+    [-0.404, 0.120],[-0.330, 0.270],[-0.408, 0.216],[-0.452,-0.040],
+    [-0.410,-0.268],[-0.246,-0.452]
+  ];
+  /* The run-off follows the outline of the head, pushed very slightly outward
+     so the film sits on the scalp. It used to be a hand-written path whose
+     first three points fell inside the skull, so the oil appeared to run
+     through the head instead of over it. */
+  const SCALP_IDX = [3, 2, 1, 0, 21, 20, 19];
+  const RUNOFF = SCALP_IDX.map((i,k) => {
+    // the offset tapers to nothing at the occiput, where the head meets the
+    // table: at full offset the film would run through the table top
+    const off = 1.035 - 0.031*(k/(SCALP_IDX.length-1));
+    return [HEAD[i][0]*off, HEAD[i][1]*off];
+  });
+  // where the stream lands: along the forehead, between brow and hairline
+  const BROW = [0.352,-0.090], HAIRLINE = [0.300,-0.330];
+  /* Neck and shoulder continue the head profile as one contour rather than
+     being a separate polygon stitched to the jaw, which is what left a break
+     there. The body axis runs down the profile's +y: extending it along +x
+     lifted the shoulder into the air once the head was rotated. */
+  const NECK = [
+    [ 0.150,0.585],[ 0.190,0.800],[ 0.260,1.050],[ 0.360,1.350],
+    [ 0.480,1.800],[ 0.560,3.200],
+    /* The underside is level from the shoulder onward, so the trunk rests on
+       the table rather than hovering over it in a wave. The neck lifts a
+       little clear of the surface, as it does on a real supine body. */
+    [-0.380,3.300],[-0.380,1.800],[-0.376,1.400],
+    [-0.362,1.080],[-0.330,0.820],[-0.286,0.560]
+  ];
+  const BODY = HEAD.slice(0,16).concat(NECK, HEAD.slice(17));
+  const TILT = -90*PI/180;              // laid flat: body level, face straight up
+
+  /* Each liquid pours differently, which is the visible difference between
+     them: oil is thick and slow, buttermilk and decoction thin and quick. */
+  const LIQUIDS = [
+    { key:'taila',  name:'taila dhārā',  use:'dryness, sleeplessness',
+      flow:'thick, slow',  col:'#E8C070', edge:'#FFE7B0', w:1.00, speed:0.70, drip:0.55 },
+    { key:'takra',  name:'takra dhārā',  use:'heat, some skin disease',
+      flow:'thin, quick',  col:'#F0EAD8', edge:'#FFFDF4', w:0.70, speed:1.15, drip:1.00 },
+    { key:'ksheera',name:'kṣīra dhārā',  use:'burning, irritability',
+      flow:'light, steady',col:'#F6F1E4', edge:'#FFFFFA', w:0.80, speed:1.00, drip:0.85 },
+    { key:'kashaya',name:'kaṣāya dhārā', use:'where the herbs are the point',
+      flow:'thin, quick',  col:'#A8703C', edge:'#D8A165', w:0.66, speed:1.20, drip:1.00 },
+  ];
+  let li = 0;
+
+  const cv = document.getElementById('c');
+  const ctx = cv.getContext('2d');
+  let W=0,H=0,dpr=1,S=1,HX=0,HY=0;
+  let DROPS=[];
+
+  function resize(){
+    dpr = clamp(window.devicePixelRatio||1,1,2);
+    const r = cv.getBoundingClientRect();
+    W = Math.max(1,Math.round(r.width)); H = Math.max(1,Math.round(r.height));
+    cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    S = Math.min(H*0.36, W*0.28);          // head height
+    HX = W*0.28; HY = H*0.50;
+    DROPS=[];
+  }
+
+  /* Draw a closed outline through the points rather than between them. The
+     head was drawn with lineTo, which made every one of its 22 vertices a
+     visible facet — the single reason it read as a blob rather than a head. */
+  function smoothClosed(pts, project, sharp){
+    const q = pts.map(project);
+    const n = q.length;
+    const mid = (a,b)=>[(a[0]+b[0])/2, (a[1]+b[1])/2];
+    ctx.beginPath();
+    const m0 = mid(q[n-1], q[0]);
+    ctx.moveTo(m0[0], m0[1]);
+    for (let i=0;i<n;i++){
+      const cur = q[i], nxt = q[(i+1)%n];
+      const m = mid(cur, nxt);
+      if (sharp && sharp.has(i)){
+        // a corner: smoothing straight through it rounds the nose and chin away
+        ctx.lineTo(cur[0], cur[1]);
+        ctx.lineTo(m[0], m[1]);
+      } else {
+        ctx.quadraticCurveTo(cur[0], cur[1], m[0], m[1]);
+      }
+    }
+    ctx.closePath();
+  }
+  /* The cranium wants smoothing; the face does not. These are the vertices
+     that must stay as corners: the bridge, the tip of the nose, the base of
+     it, the lips, the point of the chin, and the angle of the jaw. Smoothed
+     through, the jaw balloons into the neck. */
+  const SHARP = new Set([6,7,8,9,10,11,13,14,16]);
+
+  // profile coordinates -> screen, with the head's tilt applied
+  function P(p){
+    const c=Math.cos(TILT), s=Math.sin(TILT);
+    const x=p[0]*S, y=p[1]*S;
+    return [HX + x*c - y*s, HY + x*s + y*c];
+  }
+
+  /* ---- the camera ----
+     Scroll drives a zoom: wide to begin with, in on the forehead where the
+     stream lands, then back out to take in the table and the vessel below it.
+     Progress is smoothed, and snaps if the jump is large so dragging the
+     scrollbar does not lag behind. */
+  const ZOOM = [[0,1.00],[0.22,1.70],[0.46,2.25],[0.66,2.05],[0.80,1.66],[0.92,1.24],[1,1.05]];
+  function keyed(T, t){
+    t = clamp01(t);
+    if (t <= T[0][0]) return T[0][1];
+    let i=1; while (i<T.length-1 && t>T[i][0]) i++;
+    const a=T[i-1], b=T[i];
+    const k = (b[0]-a[0])<=0 ? 0 : smoothstep(0,1,(t-a[0])/(b[0]-a[0]));
+    return lerp(a[1], b[1], k);
+  }
+  let scrollT = 0, scrollTarget = 0;
+  function readScroll(){
+    try{
+      const doc = document.documentElement;
+      const max = (doc.scrollHeight||0) - window.innerHeight;
+      return max>0 ? clamp01((window.scrollY||doc.scrollTop||0)/max) : 0;
+    }catch(_){ return 0; }
+  }
+
+  /* ---- the session clock ---- */
+  const SESSION = 40;                    // minutes, compressed into the loop
+  const LOOP = 48000;                    // ms for the whole session
+  const minutesAt = time => Math.floor((time % LOOP)/LOOP * SESSION);
+
+  /* ---- the body, rendered as a translucent volume ----
+     Following the reference: a near-black field, the body a cool translucent
+     mass with a lit contour and nothing shown inside it. The liquid is the
+     only thing the eye is meant to follow. */
+  function volume(pathFn, box, tint, rim, alpha, time, motion){
+    // the mass itself
+    ctx.save();
+    pathFn();
+    const g = ctx.createLinearGradient(box[0], box[1], box[2], box[3]);
+    g.addColorStop(0, 'rgba('+tint[0]+','+tint[1]+','+tint[2]+','+(alpha*0.95).toFixed(3)+')');
+    g.addColorStop(0.55,'rgba('+tint[0]+','+tint[1]+','+tint[2]+','+(alpha*0.55).toFixed(3)+')');
+    g.addColorStop(1, 'rgba('+Math.round(tint[0]*0.4)+','+Math.round(tint[1]*0.5)+','
+                     +Math.round(tint[2]*0.7)+','+(alpha*0.85).toFixed(3)+')');
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.restore();
+
+    // the lit contour: several passes, thinning and brightening
+    ctx.save();
+    pathFn();
+    for (const [lw, a] of [[7,0.05],[4,0.10],[2,0.22],[1,0.55]]){
+      ctx.strokeStyle = 'rgba('+rim[0]+','+rim[1]+','+rim[2]+','+a+')';
+      ctx.lineWidth = Math.max(0.6, lw*S*0.006);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawScene(time, dt, motion){
+    const L = LIQUIDS[li];
+    const z = keyed(ZOOM, scrollT);
+    // hold the focus on the forehead as it closes in, and let it drift back to
+    // the middle of the figure as it pulls out
+    const fx = lerp(HX + S*0.10, HX + S*0.30, smoothstep(0.6,1,scrollT));
+    const fy = lerp(HY - S*0.34, HY + S*0.05, smoothstep(0.6,1,scrollT));
+    ctx.save();
+    ctx.translate(W*0.46, H*0.48);
+    ctx.scale(z, z);
+    ctx.translate(-fx, -fy);
+    ctx.clearRect(0,0,W,H);
+
+    /* Depth is built in planes, far to near: a graded field, a horizon where
+       the wall meets the floor, soft pools of light at different distances,
+       then the couch, then a vignette. A single flat fill and one gradient is
+       what made this read as paper. */
+    /* The table top sits exactly at the underside of the figure — measured
+       from the silhouette, not guessed — so the body is in contact with it
+       rather than floating a few pixels above. */
+    const couchY = HY + S*0.380;
+
+    // the far field: cool above, warmer and darker toward the floor
+    const field = ctx.createLinearGradient(0, 0, 0, H);
+    field.addColorStop(0,'#000000');
+    field.addColorStop(0.46,'#03060A');
+    field.addColorStop(0.70,'#080D12');
+    field.addColorStop(1,'#000000');
+    ctx.fillStyle=field; ctx.fillRect(0,0,W,H);
+
+    // pools of light at three distances, the furthest the softest
+    const pools = [
+      [W*0.30, H*0.42, Math.max(W,H)*0.40, 'rgba(52,44,40,0.16)'],
+      [W*0.70, H*0.30, Math.max(W,H)*0.30, 'rgba(30,28,28,0.14)'],
+      [W*0.46, H*0.66, Math.max(W,H)*0.28, 'rgba(44,38,34,0.14)'],
+    ];
+    for (const [px,py,pr,col] of pools){
+      const g = ctx.createRadialGradient(px,py,0,px,py,pr);
+      g.addColorStop(0,col); g.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    }
+
+    // where the far wall meets the floor
+    const horizon = couchY - H*0.16;
+    const hz = ctx.createLinearGradient(0, horizon-H*0.10, 0, horizon+H*0.08);
+    hz.addColorStop(0,'rgba(30,26,24,0)');
+    hz.addColorStop(0.5,'rgba(44,38,34,0.26)');
+    hz.addColorStop(1,'rgba(6,5,4,0.4)');
+    ctx.fillStyle=hz; ctx.fillRect(0, horizon-H*0.10, W, H*0.18);
+
+    /* The vessel that catches the run-off, on the floor beneath the hole. It
+       is drawn before the table so the table's front edge passes in front of
+       it, which is what puts it behind rather than beside. */
+    const potX = HX - S*0.09, potTop = couchY + H*0.105, potW = S*0.30, potH = S*0.26;
+    const potG = ctx.createLinearGradient(potX-potW, 0, potX+potW, 0);
+    potG.addColorStop(0,'#4A3A1C');
+    potG.addColorStop(0.4,'#9C7A3E');
+    potG.addColorStop(0.6,'#C9A55E');
+    potG.addColorStop(1,'#3E3016');
+    ctx.beginPath();
+    ctx.moveTo(potX-potW*0.78, potTop);
+    ctx.quadraticCurveTo(potX-potW, potTop+potH*0.7, potX-potW*0.52, potTop+potH);
+    ctx.lineTo(potX+potW*0.52, potTop+potH);
+    ctx.quadraticCurveTo(potX+potW, potTop+potH*0.7, potX+potW*0.78, potTop);
+    ctx.closePath();
+    ctx.fillStyle=potG; ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(potX, potTop, potW*0.78, potH*0.20, 0, 0, PI*2);
+    ctx.fillStyle='#B08C4C'; ctx.fill();
+    ctx.strokeStyle='rgba(255,226,164,0.5)'; ctx.lineWidth=Math.max(1,S*0.006); ctx.stroke();
+    // the oil standing in it
+    ctx.beginPath();
+    ctx.ellipse(potX, potTop+potH*0.10, potW*0.62, potH*0.14, 0, 0, PI*2);
+    ctx.fillStyle=L.col; ctx.fill();
+
+    /* The table. Its top sits at the underside of the body, so the figure
+       rests on it rather than floating above a plane somewhere below. */
+    const shadow = ctx.createRadialGradient(W*0.42, couchY+H*0.02, 0,
+                                            W*0.42, couchY+H*0.02, W*0.52);
+    shadow.addColorStop(0,'rgba(0,0,0,0.6)');
+    shadow.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=shadow; ctx.fillRect(0, couchY-H*0.05, W, H*0.24);
+
+    // the top surface, catching the light
+    const top = ctx.createLinearGradient(0, couchY-H*0.006, 0, couchY+H*0.030);
+    top.addColorStop(0,'rgba(126,112,98,0.65)');
+    top.addColorStop(1,'rgba(58,50,42,0.9)');
+    ctx.fillStyle=top;
+    ctx.fillRect(0, couchY-H*0.006, W, H*0.036);
+
+    // the front edge and the mass below it
+    const front = ctx.createLinearGradient(0, couchY+H*0.030, 0, H);
+    front.addColorStop(0,'rgba(40,34,29,0.95)');
+    front.addColorStop(0.30,'rgba(20,17,14,0.96)');
+    front.addColorStop(1,'rgba(3,3,3,0.98)');
+    ctx.fillStyle=front;
+    ctx.fillRect(0, couchY+H*0.030, W, H*0.24);
+
+    // a highlight along the near edge, falling away at the sides
+    const edge = ctx.createLinearGradient(0, 0, W, 0);
+    edge.addColorStop(0,'rgba(196,178,156,0)');
+    edge.addColorStop(0.30,'rgba(196,178,156,0.22)');
+    edge.addColorStop(0.68,'rgba(196,178,156,0.10)');
+    edge.addColorStop(1,'rgba(196,178,156,0)');
+    ctx.fillStyle=edge;
+    ctx.fillRect(0, couchY+H*0.029, W, H*0.003);
+
+    const jaw = P([0.246,0.500]), chin = P([0.306,0.478]);
+
+    /* Hair spread out beneath the head rather than hugging the skull: with the
+       head tipped back it falls onto the support, which is what the reference
+       shows. */
+    ctx.save();
+    ctx.beginPath();
+    const hairSpread = [[-0.05,-0.50],[-0.22,-0.62],[-0.34,-0.78],[-0.380,-0.88],
+                        [-0.34,-0.95],[-0.17,-0.92],[-0.02,-0.80],[ 0.02,-0.62],
+                        [-0.10,-0.52]];
+    hairSpread.forEach((p,i)=>{ const q=P(p); i? ctx.lineTo(q[0],q[1]) : ctx.moveTo(q[0],q[1]); });
+    ctx.closePath();
+    const hgr = ctx.createRadialGradient(HX-S*0.3, HY, 0, HX-S*0.3, HY, S*0.7);
+    hgr.addColorStop(0,'rgba(30,20,16,0.9)');
+    hgr.addColorStop(1,'rgba(10,7,6,0.7)');
+    ctx.fillStyle=hgr; ctx.fill();
+    ctx.restore();
+    volume(()=>smoothClosed(HAIR, P), [HX-S*0.5, HY-S*0.55, HX+S*0.1, HY+S*0.3],
+           [34,22,18], [110,86,70], 0.85, time, motion);
+
+    // head, neck and shoulder as one unbroken silhouette, in flesh rather than
+    // the blue energy body: the skeleton is what glows, not the skin
+    const headPath = ()=>smoothClosed(BODY, P, SHARP);
+    volume(headPath, [HX-S*0.45, HY-S*0.5, W, HY+S*1.0],
+           [214,168,136], [255,228,202], 0.60, time, motion);
+
+    /* Form. A flat fill reads as a shape; a body needs the light to fall off
+       across it. Everything below is clipped inside the silhouette: a gradient
+       down the form, a sheen along the lit upper contour, a shadow in the
+       hollows, and the few landmarks that say this is a person — the shadow
+       under the jaw, the cord of the neck, the clavicle. */
+    ctx.save();
+    headPath(); ctx.clip();
+
+    // light falls from the vessel above, so the form brightens toward the top
+    const form = ctx.createLinearGradient(0, HY-S*0.55, 0, HY+S*0.95);
+    form.addColorStop(0,'rgba(255,224,196,0.26)');
+    form.addColorStop(0.30,'rgba(214,164,130,0.06)');
+    form.addColorStop(0.72,'rgba(40,18,10,0.34)');
+    form.addColorStop(1,'rgba(18,8,4,0.58)');
+    ctx.fillStyle=form;
+    ctx.fillRect(0, HY-S*0.7, W, S*2.0);
+
+    // a sheen running along the upper contour
+    const sheen = ctx.createLinearGradient(0, HY-S*0.5, 0, HY-S*0.05);
+    sheen.addColorStop(0,'rgba(255,232,206,0.26)');
+    sheen.addColorStop(1,'rgba(255,232,206,0)');
+    ctx.fillStyle=sheen;
+    ctx.fillRect(0, HY-S*0.6, W, S*0.6);
+
+    // the hollow under the jaw, which is what separates head from neck
+    const jawS = P([0.16,0.58]);
+    const js = ctx.createRadialGradient(jawS[0], jawS[1], 0, jawS[0], jawS[1], S*0.34);
+    js.addColorStop(0,'rgba(38,16,8,0.55)');
+    js.addColorStop(1,'rgba(38,16,8,0)');
+    ctx.fillStyle=js;
+    ctx.beginPath(); ctx.arc(jawS[0], jawS[1], S*0.34, 0, PI*2); ctx.fill();
+
+    ctx.restore();
+
+    // the profile: a lit edge is all this style needs
+    const curve=(a,b,c,col,w)=>{ const p=P(a),q=P(b),r=P(c);
+      ctx.strokeStyle=col; ctx.lineWidth=Math.max(1,w*S); ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.quadraticCurveTo(q[0],q[1],r[0],r[1]); ctx.stroke(); };
+    curve([0.100,-0.062],[0.230,-0.086],[0.330,-0.036],'rgba(255,222,196,0.36)',0.013);
+    curve([0.168, 0.018],[0.240, 0.040],[0.306, 0.014],'rgba(255,232,208,0.5)',0.011);
+    curve([0.262, 0.322],[0.310, 0.344],[0.348, 0.318],'rgba(255,222,196,0.32)',0.011);
+
+    // ear
+    const ear=P([-0.075,0.120]);
+    ctx.save();
+    ctx.translate(ear[0],ear[1]); ctx.rotate(TILT);
+    ctx.beginPath(); ctx.ellipse(0,0,S*0.062,S*0.086,0,0,PI*2);
+    ctx.strokeStyle='rgba(255,222,196,0.36)'; ctx.lineWidth=Math.max(0.8,S*0.008); ctx.stroke();
+    ctx.restore();
+
+    // the cloth over the eyes
+    const e1=P([0.02, 0.055]), e2=P([0.335, 0.005]);
+    ctx.strokeStyle='rgba(236,228,214,0.72)';
+    ctx.lineWidth=Math.max(2,S*0.052); ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(e1[0],e1[1]); ctx.lineTo(e2[0],e2[1]); ctx.stroke();
+
+    /* The stream is moved back and forth across the forehead, never held on
+       one spot. That sweep is the signature of the procedure. */
+    const sweep = motion ? Math.sin(time*0.00042) : 0;
+    // the landing point travels along the forehead, on the surface of it
+    const u = 0.5 + sweep*0.34;
+    const land = [lerp(BROW[0], HAIRLINE[0], u)*1.035,
+                  lerp(BROW[1], HAIRLINE[1], u)*1.035];
+    const target = P(land);
+    const vesselY = H*0.045;
+    const vx = target[0] + sweep*S*0.10;
+
+    /* The vessel is a wide shallow brass bowl hung on three chains, tapering
+       to a small spout — not the deep pot I had drawn. The proportions matter:
+       it is far broader than it is deep. */
+    const bw = S*0.40, bh = S*0.095;
+    /* Chains, drawn as links. Three straight lines do not read as suspension —
+       what says a thing is hanging is the links catching the light, the ring
+       they gather to, and the small loops where they meet the rim. */
+    const linkR = Math.max(1.6, S*0.017);
+    function chain(x0,y0,x1,y1){
+      const L = Math.hypot(x1-x0, y1-y0);
+      const n = Math.max(3, Math.round(L/(linkR*1.5)));
+      const ux=(x1-x0)/L, uy=(y1-y0)/L;
+      for (let k=0;k<n;k++){
+        const t=k/n;
+        const x=x0+ux*L*t, y=y0+uy*L*t;
+        const ang=Math.atan2(uy,ux);
+        const edge = k % 2 === 0;                  // links alternate face-on
+        ctx.beginPath();
+        ctx.ellipse(x, y, edge?linkR:linkR*0.42, linkR*0.78, ang+PI/2, 0, PI*2);
+        ctx.strokeStyle = edge ? 'rgba(214,190,140,0.85)' : 'rgba(150,128,84,0.7)';
+        ctx.lineWidth = Math.max(0.8, S*0.0055);
+        ctx.stroke();
+      }
+    }
+    // they gather to a ring above, which is what fixes the whole thing in place
+    const ringY = vesselY - S*0.62;
+    ctx.beginPath();
+    ctx.arc(vx, ringY, linkR*1.7, 0, PI*2);
+    ctx.strokeStyle='rgba(220,198,150,0.9)';
+    ctx.lineWidth=Math.max(1.2, S*0.010);
+    ctx.stroke();
+    // and the hook above that, running out of frame
+    ctx.beginPath();
+    ctx.moveTo(vx, ringY-linkR*1.7); ctx.lineTo(vx, 0);
+    ctx.strokeStyle='rgba(170,200,220,0.35)';
+    ctx.lineWidth=Math.max(1, S*0.008);
+    ctx.stroke();
+    for (const cx2 of [-bw*0.80, 0, bw*0.80]){
+      chain(vx, ringY+linkR*1.7, vx+cx2, vesselY-bh*0.30);
+      // the loop where the chain takes the rim
+      ctx.beginPath();
+      ctx.arc(vx+cx2, vesselY-bh*0.14, linkR*0.9, PI, PI*2);
+      ctx.strokeStyle='rgba(226,200,150,0.9)';
+      ctx.lineWidth=Math.max(1, S*0.007);
+      ctx.stroke();
+    }
+    // the bowl: rim, body, and the spout below
+    const brass = ctx.createLinearGradient(vx-bw, vesselY-bh, vx+bw, vesselY+bh*2);
+    brass.addColorStop(0,'#7A5E28');
+    brass.addColorStop(0.35,'#C9A05A');
+    brass.addColorStop(0.55,'#F0D79A');
+    brass.addColorStop(0.8,'#A97F3E');
+    brass.addColorStop(1,'#6B4F24');
+    ctx.beginPath();
+    ctx.moveTo(vx-bw, vesselY);
+    ctx.quadraticCurveTo(vx-bw*0.62, vesselY+bh*1.9, vx-bw*0.10, vesselY+bh*2.1);
+    ctx.lineTo(vx+bw*0.10, vesselY+bh*2.1);
+    ctx.quadraticCurveTo(vx+bw*0.62, vesselY+bh*1.9, vx+bw, vesselY);
+    ctx.closePath();
+    ctx.fillStyle=brass; ctx.fill();
+    // the flanged rim
+    ctx.beginPath();
+    ctx.ellipse(vx, vesselY, bw, bh*0.42, 0, 0, PI*2);
+    ctx.fillStyle='#D8B06A'; ctx.fill();
+    ctx.strokeStyle='rgba(255,232,170,0.6)'; ctx.lineWidth=Math.max(1,S*0.006); ctx.stroke();
+    // the liquid sitting in it
+    ctx.beginPath();
+    ctx.ellipse(vx, vesselY+bh*0.10, bw*0.86, bh*0.32, 0, 0, PI*2);
+    ctx.fillStyle=L.col; ctx.fill();
+    // the spout, and the thread leaving it
+    ctx.beginPath();
+    ctx.moveTo(vx-bw*0.10, vesselY+bh*2.1);
+    ctx.lineTo(vx-bw*0.035, vesselY+bh*2.9);
+    ctx.lineTo(vx+bw*0.035, vesselY+bh*2.9);
+    ctx.lineTo(vx+bw*0.10, vesselY+bh*2.1);
+    ctx.closePath();
+    ctx.fillStyle='#A9803E'; ctx.fill();
+
+    // the stream: the only warm thing in the frame
+    const y0 = vesselY + bh*2.9;
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,190,90,0.9)';
+    ctx.shadowBlur = S*0.06;
+    ctx.beginPath();
+    const segs = 26;
+    for (let i=0;i<=segs;i++){
+      const t=i/segs;
+      const x = lerp(vx, target[0], t) + (motion ? Math.sin(time*0.006 + t*7)*S*0.004 : 0);
+      const y = lerp(y0, target[1], t);
+      i? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+    }
+    ctx.strokeStyle=L.col;
+    ctx.lineWidth=Math.max(1.2, S*0.011*L.w);
+    ctx.lineCap='round';
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle=L.edge;
+    ctx.lineWidth=Math.max(0.6, S*0.004*L.w);
+    ctx.stroke();
+    ctx.restore();
+
+    // the pool where it lands, and the warmth around it
+    ctx.fillStyle=L.col;
+    ctx.beginPath();
+    ctx.ellipse(target[0], target[1], S*0.070, S*0.024, TILT, 0, PI*2); ctx.fill();
+
+    /* The film has to start where the stream is actually landing. It used to
+       begin at a fixed point on the scalp while the landing point swept side to
+       side, which opened a visible gap between the two. The offset is carried
+       into the first few points and fades out along the path. */
+    ctx.beginPath();
+    ctx.moveTo(target[0], target[1]);
+    RUNOFF.forEach((p)=>{ const q=P(p); ctx.lineTo(q[0],q[1]); });
+    ctx.strokeStyle=L.col;
+    ctx.lineWidth=Math.max(2, S*0.070);
+    ctx.lineJoin='round';
+    ctx.stroke();
+    ctx.strokeStyle='rgba(255,240,200,0.22)';
+    ctx.lineWidth=Math.max(1, S*0.018);
+    ctx.stroke();
+
+    // drips into the basin
+    const crown = P(RUNOFF[RUNOFF.length-1]);   // the tail is unaffected by the sweep
+    if (motion && Math.random() < 0.10*L.drip)
+      DROPS.push({ x:crown[0]+(Math.random()-0.5)*S*0.04, y:crown[1], v:0 });
+    const basinY = couchY + H*0.115;   // the surface of the oil in the pot
+    for (let i=DROPS.length-1;i>=0;i--){
+      const d=DROPS[i];
+      if (motion){ d.v += 900*dt; d.y += d.v*dt; }
+      if (d.y > basinY){ DROPS.splice(i,1); continue; }
+      ctx.fillStyle=L.col;
+      ctx.beginPath(); ctx.ellipse(d.x, d.y, S*0.014, S*0.026, 0, 0, PI*2); ctx.fill();
+    }
+    /* A hole cut through the table at the head end, and a vessel under it on
+       the floor. The oil runs off the scalp, falls through, and is collected —
+       in practice it is strained and rewarmed and goes back into the pot above,
+       which is how one vessel lasts a whole session. */
+    const holeX = crown[0], holeW = S*0.62;
+    // the cut edge and the darkness under it
+    const hg = ctx.createLinearGradient(0, couchY-H*0.006, 0, couchY+H*0.034);
+    hg.addColorStop(0,'rgba(0,0,0,0.96)');
+    hg.addColorStop(1,'rgba(14,11,9,0.9)');
+    ctx.fillStyle=hg;
+    ctx.fillRect(holeX-holeW/2, couchY-H*0.006, holeW, H*0.040);
+    // the near lip catches the light, the far one is in shadow
+    ctx.strokeStyle='rgba(206,188,164,0.42)';
+    ctx.lineWidth=Math.max(1, S*0.008);
+    ctx.beginPath();
+    ctx.moveTo(holeX-holeW/2, couchY+H*0.030);
+    ctx.lineTo(holeX+holeW/2, couchY+H*0.030);
+    ctx.stroke();
+    ctx.strokeStyle='rgba(120,106,92,0.30)';
+    ctx.beginPath();
+    ctx.moveTo(holeX-holeW/2, couchY-H*0.004);
+    ctx.lineTo(holeX+holeW/2, couchY-H*0.004);
+    ctx.stroke();
+
+    // the warm pool at the site: the one place the cool palette is broken
+    const gl = ctx.createRadialGradient(target[0],target[1],0,target[0],target[1],S*0.40);
+    gl.addColorStop(0,'rgba(255,196,110,0.28)');
+    gl.addColorStop(0.4,'rgba(255,160,70,0.09)');
+    gl.addColorStop(1,'rgba(255,160,70,0)');
+    ctx.fillStyle=gl;
+    ctx.beginPath(); ctx.arc(target[0],target[1],S*0.40,0,PI*2); ctx.fill();
+
+    /* The height marker belongs to the scene, so it is drawn inside the camera
+       transform — outside it, the label would slide off the vessel as soon as
+       the view zoomed. It fades out once the view is close, where it would
+       only be clutter. */
+    const markA = (1 - smoothstep(0.10, 0.30, scrollT)) * 0.6;
+    if (markA > 0.02){
+      ctx.strokeStyle='rgba(196,178,156,'+(markA*0.5).toFixed(3)+')';
+      ctx.setLineDash([5,6]); ctx.lineWidth=1/z;
+      ctx.beginPath();
+      ctx.moveTo(vx - S*0.42, y0); ctx.lineTo(vx - S*0.42, target[1]);
+      ctx.moveTo(vx - S*0.46, y0); ctx.lineTo(vx - S*0.38, y0);
+      ctx.moveTo(vx - S*0.46, target[1]); ctx.lineTo(vx - S*0.38, target[1]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font='500 '+clamp(Math.round(H*0.014),10,13)+'px Archivo, sans-serif';
+      ctx.textAlign='right'; ctx.textBaseline='middle';
+      ctx.fillStyle='rgba(226,214,196,'+markA.toFixed(3)+')';
+      ctx.fillText('four aṅgula', vx - S*0.52, (y0+target[1])/2);
+    }
+
+    ctx.restore();
+
+    // a vignette, which is what stops the frame reading as a flat card
+    const vig = ctx.createRadialGradient(W*0.44, H*0.50, Math.min(W,H)*0.28,
+                                         W*0.44, H*0.50, Math.max(W,H)*0.78);
+    vig.addColorStop(0,'rgba(0,0,0,0)');
+    vig.addColorStop(1,'rgba(0,0,0,0.62)');
+    ctx.fillStyle=vig; ctx.fillRect(0,0,W,H);
+  }
+
+  /* ---- loop ---- */
+  const reduced = window.matchMedia
+    ? window.matchMedia('(prefers-reduced-motion: reduce)') : {matches:false};
+  let raf=0, running=false, visible=!document.hidden, onscreen=true, needsResize=false;
+  let lastT=0, lastMin=-1;
+  const els={ name:document.getElementById('s-name'), use:document.getElementById('s-for'),
+              flow:document.getElementById('s-flow'), time:document.getElementById('s-time') };
+
+  function frame(time){
+    raf=0;
+    const dt = lastT ? Math.min(0.05,(time-lastT)/1000) : 0.016;
+    lastT = time;
+    if (needsResize){ needsResize=false; resize(); }
+
+    scrollTarget = readScroll();
+    const diff = scrollTarget - scrollT;
+    // a large jump means the scrollbar was dragged, so go straight there
+    if (Math.abs(diff) > 0.25) scrollT = scrollTarget;
+    else {
+      scrollT += diff*(1-Math.exp(-dt/0.12));
+      if (Math.abs(scrollTarget-scrollT) < 0.0002) scrollT = scrollTarget;
+    }
+
+    drawScene(time, dt, !reduced.matches);
+    const m = minutesAt(time);
+    if (m !== lastMin && els.time){ lastMin = m; els.time.textContent = m + ' min'; }
+    if (running) schedule();
+  }
+  function schedule(){ if(!raf && running) raf=requestAnimationFrame(frame); }
+  function setRunning(n){
+    if (n===running) return;
+    running=n;
+    if (running){ lastT=0; schedule(); } else if (raf){ cancelAnimationFrame(raf); raf=0; }
+  }
+  const evaluate = ()=>setRunning(visible && onscreen);
+  window.addEventListener('scroll', ()=>schedule(), { passive:true });
+  window.addEventListener('resize', ()=>{ needsResize=true; schedule(); });
+  document.addEventListener('visibilitychange', ()=>{ visible=!document.hidden; evaluate(); });
+  if (window.ResizeObserver) new ResizeObserver(()=>{ needsResize=true; schedule(); }).observe(cv);
+  if (window.IntersectionObserver)
+    new IntersectionObserver(es=>{ onscreen=es.some(e=>e.isIntersecting); evaluate(); })
+      .observe(document.getElementById('stage'));
+
+  resize();
+  scrollT = scrollTarget = readScroll();
+  evaluate();
+  schedule();
+
+  /* ---- controls ---- */
+  const btns=[].slice.call(document.querySelectorAll('[data-l]'));
+  function paint(){
+    const L=LIQUIDS[li];
+    els.name.textContent=L.name;
+    els.use.textContent=L.use;
+    els.flow.textContent=L.flow;
+    DROPS=[];
+    schedule();
+  }
+  btns.forEach(b=>b.addEventListener('click', ()=>{
+    li=parseInt(b.dataset.l,10);
+    btns.forEach(x=>x.setAttribute('aria-pressed', String(x===b)));
+    paint();
+  }));
+  paint();
+
+  const items=document.querySelectorAll('.flow');
+  if (!window.IntersectionObserver) items.forEach(el=>el.classList.add('is-in'));
+  else{
+    const io=new IntersectionObserver((es,obs)=>{
+      es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('is-in'); obs.unobserve(e.target); } });
+    },{threshold:0.2, rootMargin:'0px 0px -8% 0px'});
+    items.forEach(el=>io.observe(el));
+  }
+})();
+</script>
+</body>
+</html>
