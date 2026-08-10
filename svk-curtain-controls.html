@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SVK Hospital — curtain + controls</title>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0E3138;
+    --sea:#17575F;
+    --deep:#123F46;
+    --cream:#F4F7F5;
+    --panel:#EAF0EE;
+    --line:rgba(14,49,56,.16);
+    --gold:#C98F3C;
+  }
+  *{box-sizing:border-box}
+  body{
+    background:#EDF1F0; margin:0; min-height:100vh;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden; font-family:Rubik,system-ui,sans-serif;
+  }
+  canvas{
+    max-height:100vh; max-width:100vw; height:auto; width:auto;
+    position:relative; z-index:1;
+  }
+  #container{
+    box-shadow:0 0 20px rgba(0,0,0,.05);
+    border:1px solid rgba(0,0,0,.1);
+    position:relative; display:flex; align-items:center; justify-content:center;
+    touch-action:none;
+  }
+  h1{
+    font-size:clamp(48px,10vw,100px); font-weight:800; line-height:1em;
+    letter-spacing:-.03em; position:absolute; color:#fff; margin:0;
+    z-index:2; pointer-events:none; text-align:center; mix-blend-mode:screen;
+  }
+  h1 small{
+    display:block; font-size:.18em; font-weight:500;
+    letter-spacing:.3em; margin-top:.9em; text-transform:uppercase;
+  }
+
+  /* ---------------- control panel ---------------- */
+  #gui{
+    position:fixed; top:12px; right:12px; z-index:10; width:296px;
+    font-size:12px; color:var(--ink);
+    max-height:calc(100vh - 24px); overflow-y:auto;
+    border:1px solid var(--line); background:var(--panel);
+    box-shadow:0 6px 24px rgba(14,49,56,.12);
+  }
+  #gui.closed .gui__body{display:none}
+  .gui__bar{
+    background:var(--sea); color:var(--cream); font-weight:600;
+    padding:7px 10px; display:flex; justify-content:space-between;
+    align-items:center; cursor:pointer; user-select:none;
+  }
+  .gui__group > h3{
+    margin:0; padding:6px 10px; font-size:10px; font-weight:600;
+    letter-spacing:.14em; text-transform:uppercase;
+    background:rgba(14,49,56,.06); border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    display:flex; justify-content:space-between; cursor:pointer; user-select:none;
+  }
+  .gui__group.closed .gui__rows{display:none}
+  .gui__rows{padding:4px 0}
+  .row{
+    display:grid; grid-template-columns:88px 1fr 58px;
+    align-items:center; gap:8px; padding:3px 10px;
+  }
+  .row > label{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .row input[type=range]{
+    -webkit-appearance:none; appearance:none; width:100%; height:16px;
+    background:none; cursor:pointer;
+  }
+  .row input[type=range]::-webkit-slider-runnable-track{
+    height:2px; background:var(--line);
+  }
+  .row input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:12px; height:14px; margin-top:-6px;
+    background:var(--sea); border-radius:1px;
+  }
+  .row input[type=range]::-moz-range-track{height:2px; background:var(--line)}
+  .row input[type=range]::-moz-range-thumb{
+    width:12px; height:14px; border:none; border-radius:1px; background:var(--sea);
+  }
+  .row input[type=number], .row select{
+    font:inherit; font-variant-numeric:tabular-nums; text-align:right;
+    width:100%; padding:2px 4px; border:1px solid var(--line);
+    background:var(--cream); color:var(--ink); border-radius:0;
+  }
+  .row select{grid-column:2 / span 2; text-align:left; cursor:pointer}
+  .row input[type=checkbox]{
+    grid-column:2; justify-self:start; width:15px; height:15px;
+    accent-color:var(--sea); cursor:pointer;
+  }
+  .btn{
+    display:block; width:calc(100% - 20px); margin:6px 10px 8px;
+    font:600 11px Rubik,sans-serif; letter-spacing:.06em;
+    background:var(--deep); color:var(--cream);
+    border:none; padding:7px; cursor:pointer;
+  }
+  .btn:hover{background:var(--ink)}
+  :focus-visible{outline:2px solid var(--gold); outline-offset:1px}
+  #open{
+    position:fixed; top:12px; right:12px; z-index:11; display:none;
+    font:600 11px Rubik,sans-serif; background:var(--deep); color:var(--cream);
+    border:none; padding:8px 16px; cursor:pointer;
+  }
+  #gui.hidden{display:none}
+  #gui.hidden + #open{display:block}
+
+  .static{display:none; max-width:40ch; padding:2rem; color:var(--sea)}
+  @media (prefers-reduced-motion:reduce){
+    #container,#gui,#open{display:none}
+    .static{display:block}
+  }
+  @media (max-width:720px){
+    #gui{width:calc(100vw - 24px)}
+  }
+</style>
+</head>
+<body>
+
+<div id="container"><h1>SVK<small>Hospital</small></h1></div>
+
+<div id="gui">
+  <div class="gui__bar" id="guibar"><span>Curtain</span><span aria-hidden="true">⇕</span></div>
+  <div class="gui__body" id="guibody"></div>
+</div>
+<button id="open">Curtain</button>
+
+<div class="static">
+  <h1 style="position:static;color:#17575F;mix-blend-mode:normal">SVK<small>Hospital</small></h1>
+  <p>You will be told what is happening, in words you understand.</p>
+</div>
+
+<script>
+(function(){
+if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+function getPointID(j,i,gridH){ return i*gridH+j; }
+function smoothstep(e0,e1,x){
+  var t=Math.min(Math.max((x-e0)/(e1-e0),0),1); return t*t*(3-2*t);
+}
+
+// what the cloth is woven from — switchable per department
+var TEXTS = {
+  'Patient charter':"You will be told what is happening, in words you understand. You will be asked before you are treated. Your pain will be taken seriously. You may bring someone with you. If you are frightened, say so, and we will slow down. ",
+  'Cardiology':"The heart is a pump, a timer and a muscle at once. We listen first, image second, and only then decide. Echo, angiography, rhythm studies. Most chest pain is not a heart attack, and we would rather see you and say so. ",
+  'Paediatrics':"Children are not small adults. Doses by weight, explanations by age, and a parent in the room unless you ask otherwise. Play is not a distraction from treatment, it is part of it. ",
+  'Emergency':"Open, always. Triage is by need, not by arrival. If you are waiting, someone is sicker. Tell the desk if your pain changes while you wait, because that changes your place in the queue. ",
+  'Maternity':"Your birth plan is a starting point, not a contract. You may move, eat, stand, kneel. You will be asked before every examination. Bring whoever keeps you calm. "
+};
+
+var container=document.getElementById('container');
+var w=Math.min(492,window.innerWidth-100), h=Math.min(468,window.innerHeight-100);
+var dpr=Math.min(window.devicePixelRatio||1,2);
+
+var CONFIG={
+  text:'Patient charter',
+  awidth:w, aheight:h,
+  gridW:42, gridH:40,
+  gravity:.65, damping:.794,
+  iterationsPerFrame:1,
+  compressFactor:.02, stretchFactor:1.1,
+  mouseSize:5000, mouseStrength:4,
+  chimes:true, chimeVolume:.28,
+  contain:false, randomSolve:false
+};
+function recalcCells(){
+  CONFIG.cellWidth = CONFIG.awidth /(CONFIG.gridW-1);
+  CONFIG.cellHeight= CONFIG.aheight/(CONFIG.gridH-1);
+}
+recalcCells();
+
+var rafID,input,c,constraints=[],particles=[];
+
+function sizeCanvas(){
+  if(!c) return;
+  c.style.width=window.innerWidth+'px';
+  c.style.height=window.innerHeight+'px';
+  c.width=Math.round(window.innerWidth*dpr);
+  c.height=Math.round(window.innerHeight*dpr);
+}
+window.addEventListener('resize',function(){ if(c&&c.width) sizeCanvas(); });
+
+// ---- live update: one pass over the array, not a listener per constraint ----
+function applyLive(){
+  for(var i=0;i<constraints.length;i++){
+    var k=constraints[i];
+    k.minLength=k.length*(k.isSpacer?0.6:CONFIG.compressFactor);
+    k.maxLength=k.length*(k.isSpacer?4  :CONFIG.stretchFactor);
+  }
+}
+
+// ---------------------------------------------------------------- main
+function main(){
+  if(rafID) cancelAnimationFrame(rafID);
+  if(input) input.unbind();
+  recalcCells();
+
+  var TEXT=TEXTS[CONFIG.text],
+      gridW=CONFIG.gridW, gridH=CONFIG.gridH,
+      cellWidth=CONFIG.cellWidth, cellHeight=CONFIG.cellHeight;
+
+  var charCanvases={}, fontSize=Math.max(12,cellHeight*1.2), box=Math.ceil(fontSize*1.4);
+  new Set(TEXT).forEach(function(ch){
+    if(ch===' ') return;
+    var off=document.createElement('canvas');
+    off.width=off.height=box*dpr;
+    var o=off.getContext('2d');
+    o.scale(dpr,dpr);
+    o.font='bold '+fontSize+'px monospace';
+    o.textAlign='center'; o.textBaseline='middle'; o.fillStyle='#17575F';
+    o.fillText(ch,box/2,box/2);
+    off.logicalSize=box; charCanvases[ch]=off;
+  });
+
+  c=document.createElement('canvas');
+  var heading=container.querySelector('h1');
+  container.innerHTML='';
+  container.appendChild(c);
+  if(heading) container.appendChild(heading);
+  sizeCanvas();
+  var ctx=c.getContext('2d');
+
+  particles=[]; constraints=[];
+  input=new Input({c:c,particles:particles});
+
+  var i,j;
+  for(i=0;i<gridW;i++) for(j=0;j<gridH;j++){
+    particles.push(new Particle({
+      x:i*cellWidth, y:j*cellHeight, pinned:j===0,
+      char:TEXT[(i+j*gridW)%TEXT.length]||' '
+    }));
+  }
+  for(i=0;i<gridW;i++) for(j=0;j<gridH;j++){
+    var p=particles[getPointID(j,i,gridH)];
+    if(j<gridH-1){
+      var vc=new Constraint({p1:p,p2:particles[getPointID(j+1,i,gridH)],
+        length:cellHeight,compressFactor:CONFIG.compressFactor,stretchFactor:CONFIG.stretchFactor});
+      constraints.push(vc); p.downConstraint=vc;
+    }
+    if(i<gridW-1) constraints.push(new Constraint({
+      p1:p,p2:particles[getPointID(j,i+1,gridH)],
+      length:cellWidth,compressFactor:0.6,stretchFactor:4,isSpacer:true}));
+  }
+
+  function draw(){
+    var ox=(c.width/dpr-CONFIG.awidth)/2, oy=(c.height/dpr-CONFIG.aheight)/2-30;
+    for(var k=0;k<particles.length;k++){
+      var p=particles[k];
+      if(!p.char||p.char===' ') continue;
+      var img=charCanvases[p.char]; if(!img) continue;
+      var cos=1,sin=0,cn=p.downConstraint;
+      if(cn){
+        var a=Math.atan2(cn.p2.pos.y-cn.p1.pos.y,cn.p2.pos.x-cn.p1.pos.x)-Math.PI/2;
+        cos=Math.cos(a); sin=Math.sin(a);
+      }
+      var tx=p.pos.x+ox, ty=p.pos.y+oy;
+      ctx.setTransform(dpr*cos,dpr*sin,-dpr*sin,dpr*cos,dpr*tx,dpr*ty);
+      var half=img.logicalSize/2;
+      ctx.drawImage(img,-half,-half,img.logicalSize,img.logicalSize);
+    }
+    ctx.setTransform(1,0,0,1,0,0);
+  }
+
+  function shuffle(a){
+    for(var x=a.length-1;x>0;x--){var y=Math.floor(Math.random()*(x+1)),t=a[x];a[x]=a[y];a[y]=t;}
+  }
+
+  var last=0;
+  function loop(now){
+    rafID=requestAnimationFrame(loop);
+    ctx.save();
+    ctx.clearRect(0,0,c.width,c.height);
+
+    var dt=Math.min(Math.max(now-last,8),32); last=now;
+
+    var energy=0;
+    for(var k=0;k<particles.length;k++){
+      particles[k].update(dt);
+      energy+=particles[k].velocity.lengthSquared;
+    }
+    if(CONFIG.randomSolve) shuffle(constraints);
+    for(var it=0;it<CONFIG.iterationsPerFrame;it++)
+      for(var m=0;m<constraints.length;m++) constraints[m].solve();
+    if(CONFIG.contain) for(k=0;k<particles.length;k++) particles[k].contain();
+
+    chimeFromEnergy(energy/particles.length);
+    draw();
+    ctx.restore();
+  }
+  rafID=requestAnimationFrame(loop);
+}
+
+// ---------------------------------------------------------------- chimes
+// door chimes: the curtain brushing the rail. driven by mean kinetic energy,
+// so a hard sweep rings and a slow drag doesn't.
+var AC=null, lastChime=0, prevE=0;
+var SCALE=[523.25,587.33,659.25,783.99,880.00,1046.50];
+function chimeFromEnergy(e){
+  if(!CONFIG.chimes || CONFIG.chimeVolume<=0) return;
+  var rising=e-prevE; prevE=e;
+  var now=performance.now();
+  if(e<0.55 || rising<0.12 || now-lastChime<190) return;
+  lastChime=now;
+  if(!AC){
+    try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(err){ return; }
+  }
+  if(AC.state==='suspended') AC.resume();
+  var amp=Math.min(e/6,1)*CONFIG.chimeVolume,
+      f=SCALE[Math.floor(Math.random()*SCALE.length)],
+      t=AC.currentTime, g=AC.createGain();
+  g.connect(AC.destination);
+  g.gain.setValueAtTime(0,t);
+  g.gain.linearRampToValueAtTime(amp*0.5,t+0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+2.2);
+  // inharmonic partials = struck metal rather than organ
+  [[1,1],[2.76,.32],[5.4,.11]].forEach(function(pr){
+    var o=AC.createOscillator(), og=AC.createGain();
+    o.type='sine'; o.frequency.value=f*pr[0]; og.gain.value=pr[1];
+    o.connect(og); og.connect(g); o.start(t); o.stop(t+2.3);
+  });
+}
+
+// ---------------------------------------------------------------- input
+function Input(o){
+  this.c=o.c; this.particles=o.particles;
+  this.mousePos=new Vec2(); this.grabRadius=20; this.bind();
+}
+Input.prototype.setMouse=function(e){
+  var r=this.c.getBoundingClientRect(),
+      ox=(this.c.width/dpr-CONFIG.awidth)/2,
+      oy=(this.c.height/dpr-CONFIG.aheight)/2-30;
+  this.mousePos.x=(e.clientX-r.left)-ox;
+  this.mousePos.y=(e.clientY-r.top)-oy;
+};
+Input.prototype.pointerdown=function(e){
+  if(e.target.closest('#gui')||e.target.closest('#open')) return;
+  this.setMouse(e);
+  for(var i=0;i<this.particles.length;i++){
+    var p=this.particles[i];
+    if(this.mousePos.subtractNew(p.pos).length<this.grabRadius){
+      this.grabbed=p; p.wasPinned=p.pinned; p.pinned=true; break;
+    }
+  }
+};
+Input.prototype.pointerup=function(){
+  if(this.grabbed){ this.grabbed.pinned=this.grabbed.wasPinned; this.grabbed=null; }
+};
+Input.prototype.pointermove=function(e){
+  if(e.target.closest('#gui')) return;
+  this.setMouse(e);
+  if(this.grabbed){
+    this.grabbed.pos.reset(this.mousePos.x,this.mousePos.y);
+    this.grabbed.oldPos.reset(this.mousePos.x,this.mousePos.y);
+  }
+  for(var i=0;i<this.particles.length;i++){
+    var p=this.particles[i], d=this.mousePos.subtractNew(p.pos), ls=d.lengthSquared;
+    if(ls<CONFIG.mouseSize){
+      var a=d.angle-Math.PI,
+          s=smoothstep(CONFIG.mouseSize,-2000,ls)*CONFIG.mouseStrength/300;
+      p.applyForce(new Vec2(Math.cos(a)*s,Math.sin(a)*s));
+    }
+  }
+};
+Input.prototype.bind=function(){
+  this.pointerdown=this.pointerdown.bind(this);
+  this.pointerup=this.pointerup.bind(this);
+  this.pointermove=this.pointermove.bind(this);
+  this.ctx=function(e){e.preventDefault();};
+  document.addEventListener('pointerdown',this.pointerdown);
+  document.addEventListener('pointerup',this.pointerup);
+  document.addEventListener('pointermove',this.pointermove);
+  document.addEventListener('contextmenu',this.ctx);
+};
+Input.prototype.unbind=function(){
+  document.removeEventListener('pointerdown',this.pointerdown);
+  document.removeEventListener('pointerup',this.pointerup);
+  document.removeEventListener('pointermove',this.pointermove);
+  document.removeEventListener('contextmenu',this.ctx);
+};
+
+// ---------------------------------------------------------------- vec2
+function Vec2(x,y){ this.x=x||0; this.y=y||0; }
+Vec2.prototype.reset=function(x,y){ this.x=x||0; this.y=y||0; return this; };
+Vec2.prototype.zero=function(){ return this.reset(0,0); };
+Vec2.prototype.clone=function(){ return new Vec2(this.x,this.y); };
+Vec2.prototype.add=function(v){ this.x+=v.x; this.y+=v.y; return this; };
+Vec2.prototype.subtract=function(v){ this.x-=v.x; this.y-=v.y; return this; };
+Vec2.prototype.subtractNew=function(v){ return this.clone().subtract(v); };
+Object.defineProperty(Vec2.prototype,'lengthSquared',{get:function(){return this.x*this.x+this.y*this.y;}});
+Object.defineProperty(Vec2.prototype,'length',{get:function(){return Math.hypot(this.x,this.y);}});
+Object.defineProperty(Vec2.prototype,'angle',{get:function(){return Math.atan2(this.y,this.x);}});
+
+// ---------------------------------------------------------------- particle
+function Particle(o){
+  this.pos=new Vec2(o.x,o.y); this.oldPos=new Vec2(o.x,o.y);
+  this.velocity=new Vec2(); this.acceleration=new Vec2(); this.gravityVec=new Vec2();
+  this.pinned=o.pinned; this.char=o.char;
+}
+Particle.prototype.update=function(delta){
+  if(this.pinned){ this.acceleration.zero(); this.velocity.zero(); return; }
+  this.velocity.reset(
+    (this.pos.x-this.oldPos.x)*CONFIG.damping,
+    (this.pos.y-this.oldPos.y)*CONFIG.damping);
+  this.oldPos.reset(this.pos.x,this.pos.y);
+  var dd=delta*delta;
+  this.gravityVec.reset(0,CONFIG.gravity/dd);
+  this.applyForce(this.gravityVec);
+  this.pos.x+=this.velocity.x+this.acceleration.x*dd;
+  this.pos.y+=this.velocity.y+this.acceleration.y*dd;
+  this.acceleration.zero();
+};
+Particle.prototype.applyForce=function(v){ this.acceleration.add(v); };
+Particle.prototype.contain=function(){
+  if(this.pinned) return;
+  var r=5;
+  if(this.pos.x<r){this.pos.x=r;this.oldPos.x=this.pos.x+Math.abs(this.oldPos.x-this.pos.x)*.8;}
+  else if(this.pos.x>CONFIG.awidth-r){this.pos.x=CONFIG.awidth-r;this.oldPos.x=this.pos.x-Math.abs(this.oldPos.x-this.pos.x)*.8;}
+  if(this.pos.y<r){this.pos.y=r;this.oldPos.y=this.pos.y+Math.abs(this.oldPos.y-this.pos.y)*.8;}
+  else if(this.pos.y>CONFIG.aheight-r){this.pos.y=CONFIG.aheight-r;this.oldPos.y=this.pos.y-Math.abs(this.oldPos.y-this.pos.y)*.8;}
+};
+
+// ---------------------------------------------------------------- constraint
+function Constraint(o){
+  this.p1=o.p1; this.p2=o.p2; this.length=o.length; this.isSpacer=o.isSpacer;
+  this.minLength=o.length*o.compressFactor;
+  this.maxLength=o.length*o.stretchFactor;
+}
+Constraint.prototype.solve=function(){
+  var dx=this.p2.pos.x-this.p1.pos.x, dy=this.p2.pos.y-this.p1.pos.y,
+      d=Math.hypot(dx,dy);
+  if(d===0) return;
+  var target=this.length;
+  if(d<this.minLength) target=this.minLength;
+  else if(d>this.maxLength) target=this.maxLength;
+  else return;                       // slack band — thread ignored entirely
+  var pc=(target-d)/d/2, ox=dx*pc, oy=dy*pc;
+  if(!this.p1.pinned){ this.p1.pos.x-=ox; this.p1.pos.y-=oy; }
+  if(!this.p2.pinned){ this.p2.pos.x+=ox; this.p2.pos.y+=oy; }
+};
+
+// ---------------------------------------------------------------- GUI
+var SCHEMA=[
+  { group:'Department', rows:[
+    { key:'text', type:'select', label:'Woven from', options:Object.keys(TEXTS), rebuild:true }
+  ]},
+  { group:'Cloth', rows:[
+    { key:'awidth',  label:'Width',   min:120, max:900, step:1 },
+    { key:'aheight', label:'Height',  min:120, max:900, step:1 },
+    { key:'gridW',   label:'Columns', min:4,   max:60,  step:1 },
+    { key:'gridH',   label:'Rows',    min:4,   max:60,  step:1 }
+  ], button:'Rebuild cloth' },
+  { group:'Motion & sound', rows:[
+    { key:'gravity',            label:'Gravity',      min:0, max:3,    step:.01 },
+    { key:'damping',            label:'Damping',      min:.5, max:1,   step:.001 },
+    { key:'iterationsPerFrame', label:'Precision',    min:1, max:20,   step:1 },
+    { key:'stretchFactor',      label:'Stretch',      min:1, max:3,    step:.01, live:true },
+    { key:'compressFactor',     label:'Compress',     min:0, max:1,    step:.01, live:true },
+    { key:'mouseSize',          label:'Touch radius', min:200, max:40000, step:100 },
+    { key:'mouseStrength',      label:'Touch force',  min:0, max:20,   step:.1 },
+    { key:'chimes',      type:'check', label:'Door chimes' },
+    { key:'chimeVolume', label:'Chime volume', min:0, max:1, step:.01 },
+    { key:'contain',     type:'check', label:'Keep in bounds' }
+  ]}
+];
+
+function decimals(step){ var s=String(step); return s.indexOf('.')<0?0:s.split('.')[1].length; }
+
+function buildGUI(){
+  var body=document.getElementById('guibody');
+  SCHEMA.forEach(function(g){
+    var wrap=document.createElement('div');
+    wrap.className='gui__group';
+    var head=document.createElement('h3');
+    head.innerHTML='<span>'+g.group+'</span><span aria-hidden="true">⇕</span>';
+    head.addEventListener('click',function(){ wrap.classList.toggle('closed'); });
+    wrap.appendChild(head);
+
+    var rows=document.createElement('div');
+    rows.className='gui__rows';
+
+    g.rows.forEach(function(r){
+      var row=document.createElement('div'); row.className='row';
+      var lab=document.createElement('label'); lab.textContent=r.label;
+      row.appendChild(lab);
+
+      if(r.type==='select'){
+        var sel=document.createElement('select');
+        r.options.forEach(function(o){
+          var op=document.createElement('option');
+          op.value=o; op.textContent=o;
+          if(CONFIG[r.key]===o) op.selected=true;
+          sel.appendChild(op);
+        });
+        sel.addEventListener('change',function(){ CONFIG[r.key]=sel.value; main(); });
+        row.appendChild(sel);
+
+      } else if(r.type==='check'){
+        var cb=document.createElement('input');
+        cb.type='checkbox'; cb.checked=!!CONFIG[r.key];
+        cb.addEventListener('change',function(){ CONFIG[r.key]=cb.checked; });
+        row.appendChild(cb);
+
+      } else {
+        var d=decimals(r.step);
+        var sl=document.createElement('input');
+        sl.type='range'; sl.min=r.min; sl.max=r.max; sl.step=r.step; sl.value=CONFIG[r.key];
+        var nu=document.createElement('input');
+        nu.type='number'; nu.min=r.min; nu.max=r.max; nu.step=r.step;
+        nu.value=Number(CONFIG[r.key]).toFixed(d);
+
+        var set=function(v,from){
+          v=Math.min(Math.max(Number(v),r.min),r.max);
+          CONFIG[r.key]=v;
+          if(from!=='slider') sl.value=v;
+          if(from!=='number') nu.value=v.toFixed(d);
+          if(r.live) applyLive();
+        };
+        sl.addEventListener('input',function(){ set(sl.value,'slider'); });
+        nu.addEventListener('change',function(){ set(nu.value,'number'); });
+        row.appendChild(sl); row.appendChild(nu);
+      }
+      rows.appendChild(row);
+    });
+
+    wrap.appendChild(rows);
+    if(g.button){
+      var b=document.createElement('button');
+      b.className='btn'; b.textContent=g.button;
+      b.addEventListener('click',main);
+      wrap.appendChild(b);
+    }
+    body.appendChild(wrap);
+  });
+}
+
+document.getElementById('guibar').addEventListener('click',function(){
+  document.getElementById('gui').classList.add('hidden');
+});
+document.getElementById('open').addEventListener('click',function(){
+  document.getElementById('gui').classList.remove('hidden');
+});
+
+buildGUI();
+setTimeout(main,400);
+})();
+</script>
+</body>
+</html>
