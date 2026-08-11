@@ -1,0 +1,17 @@
+{
+  "name": "नुक्कड़ कॉफ़ी · Nukad Coffee",
+  "short_name": "Nukad Coffee",
+  "description": "A corner coffee shop that runs like a radio station. One old tape recorder, six rotations, audio only.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#2a1710",
+  "theme_color": "#2a1710",
+  "categories": ["music", "entertainment", "lifestyle"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

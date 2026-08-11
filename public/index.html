@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>नुक्कड़ कॉफ़ी · NUKAD COFFEE — open all hours</title>
+<meta name="description" content="A corner coffee shop that runs like a radio station. Friends, bakwaas, and one old tape recorder that never stops.">
+<meta name="theme-color" content="#2a1710">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%232a1710'/><rect x='3' y='10' width='26' height='13' rx='2' fill='%23e7d4b0'/><circle cx='11' cy='16.5' r='3.6' fill='%232a1710'/><circle cx='21' cy='16.5' r='3.6' fill='%232a1710'/><rect x='11' y='14.6' width='10' height='3.8' fill='%232a1710'/><circle cx='11' cy='16.5' r='1.4' fill='%23d98a2b'/><circle cx='21' cy='16.5' r='1.4' fill='%23d98a2b'/></svg>">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rozha+One&family=Space+Mono:wght@400;700&family=Martel:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<!-- ===================== top bar: clock + who's listening ===================== -->
+<header class="topbar">
+  <div class="tb">
+    <span class="clock" id="clock">--:-- --</span>
+    <span class="live"><i class="dot"></i><b id="listeners">—</b> online</span>
+  </div>
+</header>
+
+<main>
+
+<!-- ===================== the corner ===================== -->
+<section class="hero">
+  <svg class="scene" viewBox="0 0 1000 560" role="img" aria-label="An illustration of a street-corner coffee stall at dusk, with friends sitting and talking">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#160e22"/>
+        <stop offset=".55" stop-color="#3a1c22"/>
+        <stop offset="1" stop-color="#7a3a1c"/>
+      </linearGradient>
+      <linearGradient id="lampcone" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#f2c46b" stop-opacity=".42"/>
+        <stop offset="1" stop-color="#f2c46b" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="awn" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#c0431f"/><stop offset="1" stop-color="#8c2f16"/>
+      </linearGradient>
+      <!-- bite one disc out of another so the crescent is a real shape,
+           not a translucent disc muddied against the sky -->
+      <mask id="crescent">
+        <rect x="800" y="44" width="90" height="90" fill="#000"/>
+        <circle cx="842" cy="86" r="34" fill="#fff"/>
+        <circle cx="826" cy="74" r="30" fill="#000"/>
+      </mask>
+    </defs>
+
+    <!-- sky -->
+    <rect width="1000" height="440" fill="url(#sky)"/>
+    <circle cx="842" cy="86" r="34" fill="#f2e3c6" fill-opacity=".97" mask="url(#crescent)"/>
+    <g fill="#f2e3c6" fill-opacity=".8">
+      <circle cx="120" cy="58" r="2.2"/><circle cx="212" cy="104" r="1.6"/><circle cx="316" cy="44" r="2"/>
+      <circle cx="404" cy="92" r="1.5"/><circle cx="520" cy="52" r="2.1"/><circle cx="618" cy="98" r="1.6"/>
+      <circle cx="700" cy="40" r="1.8"/><circle cx="932" cy="132" r="1.7"/><circle cx="64" cy="140" r="1.5"/>
+      <circle cx="268" cy="160" r="1.4"/><circle cx="748" cy="150" r="1.4"/>
+    </g>
+
+    <!-- distant town -->
+    <g fill="#150d1c" fill-opacity=".85">
+      <path d="M0 300h72v-58h44v58h58v-84h50v84h64v-46h40v46h70v-70h54v70h78v-52h46v52h96v-92h52v92h84v-62h48v62h44v140H0z"/>
+    </g>
+    <g fill="#f2c46b" fill-opacity=".5">
+      <rect x="24" y="256" width="9" height="12"/><rect x="46" y="272" width="9" height="12"/>
+      <rect x="182" y="236" width="9" height="12"/><rect x="204" y="258" width="9" height="12"/>
+      <rect x="330" y="212" width="9" height="12"/><rect x="352" y="240" width="9" height="12"/>
+      <rect x="470" y="264" width="9" height="12"/><rect x="562" y="196" width="9" height="12"/>
+      <rect x="584" y="224" width="9" height="12"/><rect x="742" y="184" width="9" height="12"/>
+      <rect x="764" y="216" width="9" height="12"/><rect x="888" y="204" width="9" height="12"/>
+    </g>
+
+    <!-- overhead wires, sagging, with three birds -->
+    <g stroke="#0f0913" stroke-width="2.6" fill="none" stroke-opacity=".9">
+      <path d="M0 118q250 46 500 14t500 24"/>
+      <path d="M0 142q250 52 500 18t500 28"/>
+    </g>
+    <g stroke="#0f0913" stroke-width="3" fill="none" stroke-linecap="round">
+      <path d="M286 124l9-8 9 8"/>
+      <path d="M350 117l8-7 8 7"/>
+      <path d="M706 132l9-8 9 8"/>
+      <path d="M732 130l7-6 7 6"/>
+    </g>
+
+    <!-- street lamp + its cone -->
+    <path d="M118 196 L58 440 L206 440 Z" fill="url(#lampcone)"/>
+    <g fill="#0f0913">
+      <rect x="112" y="196" width="10" height="248"/>
+      <path d="M96 190h46l-8 12H104z"/>
+    </g>
+    <ellipse class="lamp" cx="119" cy="196" rx="17" ry="9" fill="#f2c46b"/>
+
+    <!-- ===== the stall ===== -->
+    <!-- back wall -->
+    <rect x="300" y="196" width="440" height="248" fill="#241608"/>
+    <g stroke="#f2e3c6" stroke-opacity=".07" stroke-width="2">
+      <path d="M300 232h440M300 268h440M300 304h440M300 340h440M300 376h440"/>
+    </g>
+
+    <!-- signboard -->
+    <rect x="322" y="164" width="396" height="60" rx="4" fill="#1d5a55" stroke="#f2c46b" stroke-width="3"/>
+    <text x="520" y="196" text-anchor="middle" fill="#f2e3c6" font-family="Martel, serif" font-size="27" font-weight="900">नुक्कड़ कॉफ़ी</text>
+    <text x="520" y="214" text-anchor="middle" fill="#f2c46b" font-family="Space Mono, monospace" font-size="11" letter-spacing="6">NUKAD COFFEE</text>
+
+    <!-- striped awning -->
+    <path d="M292 226h456l-26 44H318z" fill="url(#awn)"/>
+    <g fill="#f2e3c6" fill-opacity=".92">
+      <path d="M330 226h38l-22 44h-38z"/><path d="M406 226h38l-22 44h-38z"/>
+      <path d="M482 226h38l-22 44h-38z"/><path d="M558 226h38l-22 44h-38z"/>
+      <path d="M634 226h38l-22 44h-38z"/><path d="M710 226h30l-22 44h-30z"/>
+    </g>
+    <g fill="#8c2f16">
+      <path d="M318 270h412l-6 12H324z"/>
+    </g>
+    <!-- three bulbs strung under the awning -->
+    <g class="bulbs" fill="#f2c46b">
+      <circle cx="390" cy="292" r="6"/><circle cx="520" cy="298" r="6"/><circle cx="650" cy="292" r="6"/>
+    </g>
+    <g stroke="#0f0913" stroke-width="1.6" fill="none">
+      <path d="M330 282q60 14 120 4t120 8 120-8"/>
+    </g>
+
+    <!-- counter -->
+    <rect x="330" y="336" width="380" height="18" rx="3" fill="#a83a1c"/>
+    <rect x="342" y="354" width="356" height="90" fill="#3d2416"/>
+    <g stroke="#f2e3c6" stroke-opacity=".12" stroke-width="2">
+      <path d="M400 354v90M460 354v90M580 354v90M640 354v90"/>
+    </g>
+
+    <!-- the urn. It is hot: a glow on the wall behind it, since there is no
+         room for steam between the lid and the awning. Drawn first so the
+         glow sits behind the metal rather than washing it out. -->
+    <ellipse cx="401" cy="306" rx="54" ry="42" fill="#f2c46b" fill-opacity=".08"/>
+    <g>
+      <rect x="372" y="286" width="58" height="50" rx="6" fill="#c9a227"/>
+      <rect x="372" y="286" width="58" height="10" rx="4" fill="#e7d4b0"/>
+      <rect x="392" y="276" width="18" height="12" rx="3" fill="#8c8c8c"/>
+      <path d="M430 300c14 2 18 8 18 14s-6 12-16 12" fill="none" stroke="#c9a227" stroke-width="5"/>
+      <rect x="384" y="308" width="34" height="4" rx="2" fill="#8c2f16" fill-opacity=".6"/>
+    </g>
+
+    <!-- stacked glasses + a jar of biscuits -->
+    <g fill="#e7d4b0" fill-opacity=".55">
+      <path d="M596 314h18l-2 22h-14z"/><path d="M618 314h18l-2 22h-14z"/><path d="M640 314h18l-2 22h-14z"/>
+      <path d="M607 292h18l-2 20h-14z"/><path d="M629 292h18l-2 20h-14z"/>
+    </g>
+    <g>
+      <rect x="668" y="296" width="34" height="40" rx="4" fill="#f2e3c6" fill-opacity=".3"/>
+      <rect x="668" y="292" width="34" height="8" rx="3" fill="#a83a1c"/>
+      <g fill="#c9772c"><circle cx="678" cy="320" r="5"/><circle cx="690" cy="326" r="5"/><circle cx="686" cy="310" r="5"/></g>
+    </g>
+
+    <!-- the tape recorder ON the counter, tiny -->
+    <g>
+      <rect x="486" y="306" width="76" height="30" rx="3" fill="#2a1710" stroke="#f2c46b" stroke-width="1.6"/>
+      <rect x="494" y="312" width="34" height="18" rx="2" fill="#140c05"/>
+      <circle cx="503" cy="321" r="4" fill="#e7d4b0"/><circle cx="519" cy="321" r="4" fill="#e7d4b0"/>
+      <g fill="#f2c46b"><rect x="534" y="314" width="4" height="14"/><rect x="541" y="314" width="4" height="14"/>
+        <rect x="548" y="314" width="4" height="14"/></g>
+    </g>
+
+    <!-- ===== the friends ===== -->
+    <!-- bench -->
+    <g fill="#3d2416">
+      <rect x="742" y="392" width="176" height="12" rx="3"/>
+      <rect x="752" y="404" width="10" height="40"/><rect x="898" y="404" width="10" height="40"/>
+    </g>
+    <!-- figure A: leaning back, mid-sentence, cup in hand -->
+    <g class="fig">
+      <path d="M770 392c0-30 8-52 26-52s26 22 26 52z" fill="#1c4b6e"/>
+      <circle cx="796" cy="326" r="17" fill="#8c5a3c"/>
+      <path d="M780 322q16-16 32 0q-4-14-16-14t-16 14z" fill="#140c05"/>
+      <path d="M822 366q22-6 30-20" stroke="#1c4b6e" stroke-width="11" fill="none" stroke-linecap="round"/>
+      <circle cx="856" cy="342" r="7" fill="#f2e3c6"/>
+    </g>
+    <!-- figure B: turned in, listening, elbow on knee -->
+    <g class="fig">
+      <path d="M846 392c0-28 8-48 24-48s24 20 24 48z" fill="#5d6b2f"/>
+      <circle cx="870" cy="332" r="16" fill="#6b4226"/>
+      <path d="M855 330q15-16 30 0q-4-13-15-13t-15 13z" fill="#140c05"/>
+      <path d="M848 368q-18 4-24 16" stroke="#5d6b2f" stroke-width="10" fill="none" stroke-linecap="round"/>
+    </g>
+    <!-- figure C: standing at the counter, back to us -->
+    <g class="fig">
+      <path d="M258 444c0-42 10-68 30-68s30 26 30 68z" fill="#8c2f16"/>
+      <circle cx="288" cy="358" r="18" fill="#7a4a2c"/>
+      <path d="M270 352q18-18 36 0q-5-16-18-16t-18 16z" fill="#140c05"/>
+      <path d="M316 402q22-4 30-16" stroke="#8c2f16" stroke-width="11" fill="none" stroke-linecap="round"/>
+      <circle cx="352" cy="382" r="7" fill="#f2e3c6"/>
+    </g>
+    <!-- chit-chat: two little speech ticks between the bench pair -->
+    <g class="chat" fill="none" stroke="#f2c46b" stroke-width="2.6" stroke-linecap="round">
+      <path d="M828 306q10-8 20 0"/><path d="M834 296q6-5 12 0"/>
+    </g>
+
+    <!-- scooter, parked -->
+    <g>
+      <circle cx="152" cy="420" r="24" fill="none" stroke="#0f0913" stroke-width="7"/>
+      <circle cx="252" cy="420" r="24" fill="none" stroke="#0f0913" stroke-width="7"/>
+      <path d="M152 420l22-52h44l14 22-34 30z" fill="#1d5a55"/>
+      <path d="M196 368h34l16 24" stroke="#0f0913" stroke-width="6" fill="none" stroke-linecap="round"/>
+      <path d="M174 366h30" stroke="#2a1710" stroke-width="9" stroke-linecap="round"/>
+    </g>
+
+    <!-- the dog, asleep, as required by law at any Indian nukkad -->
+    <g fill="#c9a227" fill-opacity=".85">
+      <ellipse cx="452" cy="428" rx="42" ry="15"/>
+      <circle cx="410" cy="424" r="13"/>
+      <path d="M400 416l-6-10 12 2z"/>
+      <path d="M492 424q16-6 18 4" stroke="#c9a227" stroke-width="5" fill="none" stroke-linecap="round"/>
+    </g>
+
+    <!-- road -->
+    <rect y="440" width="1000" height="120" fill="#171012"/>
+    <g stroke="#f2e3c6" stroke-opacity=".2" stroke-width="5" stroke-dasharray="42 34">
+      <path d="M0 504h1000"/>
+    </g>
+  </svg>
+</section>
+
+<!-- ===================== the name ===================== -->
+<section class="title">
+  <h1 class="dev">नुक्कड़ कॉफ़ी</h1>
+  <div class="en">NUKAD COFFEE</div>
+  <p class="tagline">Coffee at the corner, friends on the bench, and one old tape recorder
+     that nobody is allowed to switch off.</p>
+  <div class="openline">open all hours · <span class="dev">कोई छुट्टी नहीं</span></div>
+
+  <div class="links">
+    <a id="spotify" target="_blank" rel="noopener" href="https://open.spotify.com/search/nukkad%20coffee">Spotify</a>
+    <a id="ytm" target="_blank" rel="noopener" href="https://music.youtube.com/search?q=nukkad+coffee">YouTube&nbsp;Music</a>
+  </div>
+
+  <div class="install" id="installWrap" hidden>
+    <button id="installBtn">Install as app</button>
+    <span>full screen, no address bar</span>
+  </div>
+</section>
+
+<!-- ===================== what this is ===================== -->
+<section class="about">
+  <p>Nukad Coffee is a corner. Two benches, one urn, a shutter that comes down at nobody's
+     particular hour. People turn up for a cup and stay for the argument.</p>
+  <p>The tape recorder has been on the counter since before the coffee was good. It plays
+     <b>audio only</b> — no screens at this corner — and it runs six rotations depending on
+     what the hour deserves. Pick one and it loads. Nothing to paste, nothing to sign into.</p>
+</section>
+
+<!-- ===================== THE TAPE RECORDER ===================== -->
+<section class="deckwrap" id="deckSection">
+  <svg id="rec" class="rec" viewBox="0 0 720 430" aria-label="Tape recorder">
+    <defs>
+      <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#4a2e1c"/><stop offset="1" stop-color="#2a1710"/>
+      </linearGradient>
+      <linearGradient id="win" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#0d0703"/><stop offset="1" stop-color="#1f120a"/>
+      </linearGradient>
+      <linearGradient id="glassy" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#f2e3c6" stop-opacity=".18"/>
+        <stop offset=".5" stop-color="#f2e3c6" stop-opacity=".03"/>
+        <stop offset="1" stop-color="#f2e3c6" stop-opacity=".13"/>
+      </linearGradient>
+    </defs>
+
+    <!-- carry handle -->
+    <path d="M300 30h120a16 16 0 0 1 16 16v10h-18v-8a6 6 0 0 0-6-6H308a6 6 0 0 0-6 6v8h-18V46a16 16 0 0 1 16-16z"
+          fill="#3d2416" stroke="#f2e3c6" stroke-opacity=".25" stroke-width="2"/>
+
+    <!-- case -->
+    <rect x="16" y="56" width="688" height="358" rx="12" fill="url(#body)"
+          stroke="#f2e3c6" stroke-opacity=".3" stroke-width="2.5"/>
+    <rect x="30" y="70" width="660" height="330" rx="8" fill="none"
+          stroke="#f2e3c6" stroke-opacity=".1" stroke-width="1.5"/>
+
+    <text x="52" y="102" fill="#d98a2b" font-family="Space Mono, monospace" font-size="12" letter-spacing="4">
+      NUKAD · TWO-IN-ONE · MODEL NC-74</text>
+    <circle id="lamp" cx="664" cy="96" r="8" fill="#d98a2b"/>
+
+    <!-- speaker grille -->
+    <g>
+      <rect x="46" y="122" width="164" height="196" rx="6" fill="#1a0f07" stroke="#f2e3c6" stroke-opacity=".22" stroke-width="2"/>
+      <g fill="#f2e3c6" fill-opacity=".14">
+        <circle cx="70" cy="146" r="4"/><circle cx="94" cy="146" r="4"/><circle cx="118" cy="146" r="4"/><circle cx="142" cy="146" r="4"/><circle cx="166" cy="146" r="4"/><circle cx="190" cy="146" r="4"/>
+        <circle cx="70" cy="172" r="4"/><circle cx="94" cy="172" r="4"/><circle cx="118" cy="172" r="4"/><circle cx="142" cy="172" r="4"/><circle cx="166" cy="172" r="4"/><circle cx="190" cy="172" r="4"/>
+        <circle cx="70" cy="198" r="4"/><circle cx="94" cy="198" r="4"/><circle cx="118" cy="198" r="4"/><circle cx="142" cy="198" r="4"/><circle cx="166" cy="198" r="4"/><circle cx="190" cy="198" r="4"/>
+        <circle cx="70" cy="224" r="4"/><circle cx="94" cy="224" r="4"/><circle cx="118" cy="224" r="4"/><circle cx="142" cy="224" r="4"/><circle cx="166" cy="224" r="4"/><circle cx="190" cy="224" r="4"/>
+        <circle cx="70" cy="250" r="4"/><circle cx="94" cy="250" r="4"/><circle cx="118" cy="250" r="4"/><circle cx="142" cy="250" r="4"/><circle cx="166" cy="250" r="4"/><circle cx="190" cy="250" r="4"/>
+        <circle cx="70" cy="276" r="4"/><circle cx="94" cy="276" r="4"/><circle cx="118" cy="276" r="4"/><circle cx="142" cy="276" r="4"/><circle cx="166" cy="276" r="4"/><circle cx="190" cy="276" r="4"/>
+        <circle cx="70" cy="302" r="4"/><circle cx="94" cy="302" r="4"/><circle cx="118" cy="302" r="4"/><circle cx="142" cy="302" r="4"/><circle cx="166" cy="302" r="4"/><circle cx="190" cy="302" r="4"/>
+      </g>
+      <!-- the cone breathes with the audio -->
+      <circle id="cone" cx="128" cy="220" r="34" fill="#d98a2b" fill-opacity=".1"/>
+    </g>
+
+    <!-- cassette window -->
+    <rect x="236" y="122" width="300" height="164" rx="6" fill="url(#win)"
+          stroke="#f2e3c6" stroke-opacity=".3" stroke-width="2.5"/>
+
+    <g id="cassette">
+      <rect x="256" y="140" width="260" height="128" rx="6" id="shell" fill="#8c2f16" stroke="#140c05" stroke-width="3"/>
+      <rect x="268" y="150" width="236" height="40" rx="3" fill="#f2e3c6" fill-opacity=".94"/>
+      <text id="cLabel" x="386" y="171" text-anchor="middle" fill="#2a1710"
+            font-family="Rozha One, serif" font-size="19">—</text>
+      <text id="cSide" x="386" y="185" text-anchor="middle" fill="#2a1710" fill-opacity=".6"
+            font-family="Space Mono, monospace" font-size="8" letter-spacing="3">SIDE A · 90 MIN</text>
+
+      <rect x="288" y="198" width="196" height="58" rx="4" fill="#140c05" stroke="#2a1710" stroke-width="2"/>
+      <rect x="288" y="198" width="196" height="58" rx="4" fill="url(#glassy)"/>
+      <path id="tapePath" d="M326 227H446" stroke="#3a2010" stroke-width="24" stroke-linecap="butt"/>
+      <circle class="hub" id="hubL" cx="326" cy="227" r="24" fill="#3a2010"/>
+      <circle class="hub" id="hubR" cx="446" cy="227" r="12" fill="#3a2010"/>
+      <g class="reel left">
+        <circle cx="326" cy="227" r="13" fill="#e7d4b0" stroke="#2a1710" stroke-width="2"/>
+        <g stroke="#2a1710" stroke-width="2.6">
+          <path d="M326 217v-5M326 237v5M316 227h-5M336 227h5M319 220l-4-4M333 234l4 4M333 220l4-4M319 234l-4 4"/></g>
+        <circle cx="326" cy="227" r="4" fill="#2a1710"/>
+      </g>
+      <g class="reel right">
+        <circle cx="446" cy="227" r="13" fill="#e7d4b0" stroke="#2a1710" stroke-width="2"/>
+        <g stroke="#2a1710" stroke-width="2.6">
+          <path d="M446 217v-5M446 237v5M436 227h-5M456 227h5M439 220l-4-4M453 234l4 4M453 220l4-4M439 234l-4 4"/></g>
+        <circle cx="446" cy="227" r="4" fill="#2a1710"/>
+      </g>
+    </g>
+
+    <!-- window glass, swings shut when a tape drops in -->
+    <rect id="door" x="236" y="122" width="300" height="164" rx="6" fill="url(#glassy)"
+          stroke="#f2e3c6" stroke-opacity=".45" stroke-width="2.5"/>
+
+    <!-- VU meter -->
+    <g transform="translate(556,122)">
+      <rect x="0" y="0" width="118" height="86" rx="5" fill="#0d0703" stroke="#f2e3c6" stroke-opacity=".3" stroke-width="2"/>
+      <g stroke="#f2e3c6" stroke-opacity=".22" fill="none"><path d="M16 70A44 44 0 0 1 102 70"/></g>
+      <g stroke="#a83a1c" stroke-opacity=".5" fill="none"><path d="M78 30A44 44 0 0 1 102 70"/></g>
+      <line class="vu" id="vuL" x1="59" y1="70" x2="59" y2="30" stroke="#d98a2b" stroke-width="2.5"/>
+      <text x="59" y="82" text-anchor="middle" fill="#f2e3c6" fill-opacity=".4"
+            font-family="Space Mono, monospace" font-size="7" letter-spacing="2">VU</text>
+    </g>
+
+    <!-- tape counter -->
+    <g transform="translate(556,222)">
+      <rect x="0" y="0" width="118" height="64" rx="5" fill="#0d0703" stroke="#f2e3c6" stroke-opacity=".3" stroke-width="2"/>
+      <text x="59" y="18" text-anchor="middle" fill="#f2e3c6" fill-opacity=".45"
+            font-family="Space Mono, monospace" font-size="7" letter-spacing="3">COUNTER</text>
+      <text id="counter" x="59" y="46" text-anchor="middle" fill="#d98a2b"
+            font-family="Space Mono, monospace" font-size="22" letter-spacing="5">000</text>
+    </g>
+
+    <!-- piano-key transport -->
+    <g id="keys">
+      <g class="key" data-key="prev">
+        <rect x="46" y="330" width="88" height="60" rx="4"/>
+        <path d="M84 350l-16 10 16 10zM104 350l-16 10 16 10z"/>
+      </g>
+      <g class="key" data-key="play">
+        <rect x="142" y="330" width="88" height="60" rx="4"/>
+        <path d="M172 350l22 10-22 10z"/>
+      </g>
+      <g class="key" data-key="pause">
+        <rect x="238" y="330" width="88" height="60" rx="4"/>
+        <path d="M272 350h7v20h-7zM285 350h7v20h-7z"/>
+      </g>
+      <g class="key" data-key="stop">
+        <rect x="334" y="330" width="88" height="60" rx="4"/>
+        <path d="M368 351h20v18h-20z"/>
+      </g>
+      <g class="key" data-key="next">
+        <rect x="430" y="330" width="88" height="60" rx="4"/>
+        <path d="M460 350l16 10-16 10zM480 350l16 10-16 10z"/>
+      </g>
+      <g class="key" data-key="eject">
+        <rect x="526" y="330" width="88" height="60" rx="4"/>
+        <path d="M570 348l14 14h-28zM556 366h28v5h-28z"/>
+      </g>
+    </g>
+
+    <!-- volume knob -->
+    <g id="volKnob" transform="translate(660,360)">
+      <circle r="30" fill="#1a0f07" stroke="#f2e3c6" stroke-opacity=".3" stroke-width="2"/>
+      <circle r="22" fill="#3d2416"/>
+      <line id="volMark" x1="0" y1="0" x2="0" y2="-17" stroke="#d98a2b" stroke-width="3.5" stroke-linecap="round"/>
+      <text y="46" text-anchor="middle" fill="#f2e3c6" fill-opacity=".4"
+            font-family="Space Mono, monospace" font-size="7" letter-spacing="2">VOL</text>
+    </g>
+  </svg>
+
+  <!-- what's on -->
+  <div class="nowline">
+    <div class="np-t" id="npTitle">Nothing on the tape</div>
+    <div class="np-s" id="npSub">Pick a rotation below and it loads itself</div>
+  </div>
+
+  <!-- seek bar, the way a tape shows its travel -->
+  <div class="seek" id="seek" role="slider" tabindex="0" aria-label="Seek"
+       aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+    <i id="seekFill"></i><b id="seekHead"></b>
+  </div>
+  <div class="times"><span id="tCur">0:00</span><span id="tDur">0:00</span></div>
+
+  <div class="transport">
+    <button id="bPrev" title="Previous">‹‹ Prev</button>
+    <button id="bPlay" title="Play / pause" class="primary">▶ Play</button>
+    <button id="bNext" title="Next">Next ››</button>
+    <button id="bStop" title="Eject">■ Eject</button>
+  </div>
+
+  <label class="volwrap">
+    <span>Volume</span>
+    <input type="range" id="vol" min="0" max="100" value="80">
+    <b id="volV">80</b>
+  </label>
+
+  <div class="status" id="status">Audio only — the corner has no screens.</div>
+</section>
+
+<!-- ===================== rotations ===================== -->
+<section class="rots-sec" id="rotations">
+  <div class="sechead">
+    <h2>Today's rotations</h2>
+    <span class="count" id="rotCount"></span>
+  </div>
+  <div class="rots" id="rots"></div>
+</section>
+
+<!-- ===================== the reel ===================== -->
+<section class="reel-sec">
+  <div class="sechead">
+    <h2>On this tape</h2>
+    <span class="count" id="srcMode">checking…</span>
+  </div>
+  <ol class="tracklist" id="tracklist">
+    <li class="idle">Nothing loaded. The recorder is warm, though.</li>
+  </ol>
+</section>
+
+<!-- ===================== find us ===================== -->
+<section class="visit">
+  <div class="kv"><span>The corner</span><b>Where the 4th Cross meets the main road</b></div>
+  <div class="kv"><span>Hours</span><b>All of them</b></div>
+  <div class="kv"><span>Coffee</span><b>Filter, by the glass · ₹20</b></div>
+  <div class="kv"><span>Bakwaas</span><b>Free, unlimited</b></div>
+  <div class="kv"><span>Tape</span><b id="vTape">—</b></div>
+</section>
+
+</main>
+
+<footer>
+  <div class="fw">
+    <span class="dev">नुक्कड़ कॉफ़ी</span>
+    <span>NUKAD COFFEE · OPEN ALL HOURS</span>
+  </div>
+  <div class="fine">
+    <p>Playback uses the official YouTube player, which is how embedding is licensed to work —
+       nothing here is proxied, downloaded or re-hosted. All rights stay with the artists and
+       their labels.</p>
+    <p>Made for the corner. <a href="mailto:hello@nukadcoffee.example">hello@nukadcoffee.example</a></p>
+  </div>
+</footer>
+
+<!-- the player itself: audio only, parked off-screen so no video ever shows -->
+<div id="ytHost" aria-hidden="true"><div id="yt"></div></div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/app.js" type="module"></script>
+</body>
+</html>

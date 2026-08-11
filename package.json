@@ -1,0 +1,16 @@
+{
+  "name": "nukad-coffee",
+  "version": "1.0.0",
+  "description": "नुक्कड़ कॉफ़ी · Nukad Coffee — a corner coffee shop that runs like a radio station",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "curated": "node server.js --curated"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "engines": { "node": ">=18" }
+}
